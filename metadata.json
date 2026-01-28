@@ -1,0 +1,5 @@
+{
+  "name": "Backup",
+  "description": "A management tool for Cherry Shop Kids to handle revenue, invoices, and consignment items. Features local storage persistence and optional cloud sync capabilities via Supabase.",
+  "requestFramePermissions": []
+}
