@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ConsignmentItem, ConsignmentStatus } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon } from './Icons';
 import ConsignmentModal from './ConsignmentModal';
 import ImportModal from './ImportModal';
 import { transformToConsignmentData } from '../utils/importer';
 import { generateConsignmentTemplate } from '../utils/templateGenerator';
 import html2canvas from 'html2canvas';
 import ConsignmentTemplate from './ConsignmentTemplate';
+import ColumnToggler from './ColumnToggler';
 
 const initialData: ConsignmentItem[] = [];
 const GROUPS_PER_PAGE = 5; // Number of customer groups per page
@@ -16,12 +17,26 @@ type GroupedItems = {
     [customerName: string]: ConsignmentItem[];
 }
 
+const CONSIGNMENT_COLUMNS = [
+    { key: 'productName', label: 'Sản Phẩm' },
+    { key: 'consignmentPrice', label: 'Giá Bán' },
+    { key: 'quantity', label: 'SL' },
+    { key: 'consignmentFee', label: 'Phí %' },
+    { key: 'amountAfterFee', label: 'Tiền nhận lại' },
+    { key: 'status', label: 'Trạng Thái' },
+    { key: 'note', label: 'NOTE' },
+    { key: 'actions', label: 'Hành động' },
+];
+
 const ConsignmentTable: React.FC = () => {
     const [items, setItems] = useLocalStorage<ConsignmentItem[]>('consignmentData', initialData);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<ConsignmentItem | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('consignmentVisibleColumns', CONSIGNMENT_COLUMNS.map(c => c.key));
+
 
     // State and ref for image export
     const [printingConsignment, setPrintingConsignment] = useState<{ customerName: string; items: ConsignmentItem[] } | null>(null);
@@ -29,13 +44,22 @@ const ConsignmentTable: React.FC = () => {
 
     useEffect(() => {
         if (printingConsignment && printRef.current) {
-            html2canvas(printRef.current, { scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `BaoCao_KyGui_${printingConsignment.customerName.replace(/\s+/g, '_')}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                setPrintingConsignment(null); // Clean up after download
-            });
+            // Add a delay to ensure fonts and styles are fully rendered before capturing
+            const timer = setTimeout(() => {
+                html2canvas(printRef.current, { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `BaoCao_KyGui_${printingConsignment.customerName.replace(/\s+/g, '_')}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    setPrintingConsignment(null); // Clean up after download
+                });
+            }, 500); // Increased delay to 500ms for better reliability
+
+            return () => clearTimeout(timer); // Cleanup timeout if component unmounts
         }
     }, [printingConsignment]);
 
@@ -47,12 +71,30 @@ const ConsignmentTable: React.FC = () => {
     }, [items]);
 
     const groupedEntries = useMemo(() => Object.entries(groupedItems) as [string, ConsignmentItem[]][], [groupedItems]);
-    const totalPages = Math.ceil(groupedEntries.length / GROUPS_PER_PAGE);
+    
+    const filteredEntries = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return groupedEntries;
+        }
+        const lowercasedTerm = searchTerm.toLowerCase();
+        return groupedEntries.filter(([customerName]) =>
+            customerName.toLowerCase().includes(lowercasedTerm)
+        );
+    }, [groupedEntries, searchTerm]);
+
+    const totalPages = Math.ceil(filteredEntries.length / GROUPS_PER_PAGE);
 
     const paginatedEntries = useMemo(() => {
         const startIndex = (currentPage - 1) * GROUPS_PER_PAGE;
-        return groupedEntries.slice(startIndex, startIndex + GROUPS_PER_PAGE);
-    }, [groupedEntries, currentPage]);
+        return filteredEntries.slice(startIndex, startIndex + GROUPS_PER_PAGE);
+    }, [filteredEntries, currentPage]);
+
+    // Reset to page 1 if search term changes
+    useEffect(() => {
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    }, [searchTerm]);
 
     // Reset to page 1 if data changes make the current page invalid
     useEffect(() => {
@@ -90,6 +132,12 @@ const ConsignmentTable: React.FC = () => {
     const handleDeleteCustomer = (customerName: string) => {
         if (window.confirm(`Bạn có chắc chắn muốn xóa TẤT CẢ các mục ký gửi của khách hàng "${customerName}" không? Hành động này không thể hoàn tác.`)) {
             setItems(prevItems => prevItems.filter(item => item.customerName !== customerName));
+        }
+    };
+
+    const handleClearAll = () => {
+        if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu ký gửi không? Hành động này không thể hoàn tác.')) {
+            setItems([]);
         }
     };
     
@@ -181,8 +229,14 @@ const ConsignmentTable: React.FC = () => {
     return (
         <div className="bg-white p-6 rounded-lg shadow-lg">
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold text-gray-800">Quản lý Khách ký gửi</h2>
+                <div className="flex items-center gap-4">
+                    <h2 className="text-2xl font-bold text-gray-800">Quản lý Khách ký gửi</h2>
+                    <button onClick={handleClearAll} className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded">
+                        <ClearIcon className="w-3 h-3" /> Xóa sạch
+                    </button>
+                </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <ColumnToggler columns={CONSIGNMENT_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
                     <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-sm">
                         <UploadIcon />
                         <span className="font-medium">Nhập Excel</span>
@@ -192,6 +246,16 @@ const ConsignmentTable: React.FC = () => {
                         <span className="font-medium">Thêm Ký Gửi</span>
                     </button>
                 </div>
+            </div>
+
+            <div className="mb-6">
+                <input
+                    type="text"
+                    placeholder="Tìm theo tên khách ký gửi..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                />
             </div>
 
             <div className="space-y-10">
@@ -234,8 +298,8 @@ const ConsignmentTable: React.FC = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-100">
                                     <tr>
-                                        {['Sản Phẩm', 'Giá Bán', 'SL', 'Phí %', 'Tiền nhận lại', 'Trạng Thái', 'NOTE', 'Hành động'].map(h => (
-                                            <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{h}</th>
+                                        {CONSIGNMENT_COLUMNS.map(col => visibleColumns.includes(col.key) && (
+                                            <th key={col.key} className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{col.label}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -244,19 +308,19 @@ const ConsignmentTable: React.FC = () => {
                                         const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
                                         return (
                                         <tr key={item.id} className={`${getStatusRowClass(item.status)} hover:opacity-95 transition-opacity`}>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold">{item.productName}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.quantity}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.consignmentFee}%</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-blue-700">{formatCurrency(amountAfterFee)}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs">{getStatusBadge(item.status)}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 italic truncate max-w-[100px]" title={item.note}>{item.note || '-'}</td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs">
+                                            {visibleColumns.includes('productName') && <td className="px-4 py-3 whitespace-nowrap text-xs font-bold">{item.productName}</td>}
+                                            {visibleColumns.includes('consignmentPrice') && <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>}
+                                            {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.quantity}</td>}
+                                            {visibleColumns.includes('consignmentFee') && <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.consignmentFee}%</td>}
+                                            {visibleColumns.includes('amountAfterFee') && <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-blue-700">{formatCurrency(amountAfterFee)}</td>}
+                                            {visibleColumns.includes('status') && <td className="px-4 py-3 whitespace-nowrap text-xs">{getStatusBadge(item.status)}</td>}
+                                            {visibleColumns.includes('note') && <td className="px-4 py-3 text-xs text-gray-500 italic max-w-[150px] whitespace-pre-wrap break-words" title={item.note}>{item.note || '-'}</td>}
+                                            {visibleColumns.includes('actions') && <td className="px-4 py-3 whitespace-nowrap text-xs">
                                                 <div className="flex gap-1">
                                                     <button onClick={() => handleOpenModal(item)} className="p-1.5 hover:bg-white rounded-lg text-primary-600 transition-colors border border-transparent hover:border-primary-100"><EditIcon className="w-4 h-4" /></button>
                                                     <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-white rounded-lg text-red-600 transition-colors border border-transparent hover:border-red-100"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
-                                            </td>
+                                            </td>}
                                         </tr>
                                     )})}
                                 </tbody>
@@ -271,7 +335,9 @@ const ConsignmentTable: React.FC = () => {
                     )
                 }) : (
                      <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                        <p className="text-gray-400 font-medium italic">Chưa có dữ liệu hàng ký gửi.</p>
+                        <p className="text-gray-400 font-medium italic">
+                            {searchTerm ? `Không tìm thấy khách hàng nào có tên "${searchTerm}".` : 'Chưa có dữ liệu hàng ký gửi.'}
+                        </p>
                      </div>
                 )}
             </div>

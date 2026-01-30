@@ -1,14 +1,29 @@
 import React, { useState, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon } from './Icons';
 import RevenueModal from './RevenueModal';
 import ImportModal from './ImportModal';
 import { transformToRevenueData } from '../utils/importer';
 import { generateRevenueTemplate } from '../utils/templateGenerator';
 import { generateUniqueId } from '../utils/helpers';
+import ColumnToggler from './ColumnToggler';
 
 const initialData: RevenueEntry[] = [];
+
+const REVENUE_COLUMNS = [
+    { key: 'date', label: 'Ngày' },
+    { key: 'customerName', label: 'Khách hàng' },
+    { key: 'productName', label: 'Sản Phẩm' },
+    { key: 'costPrice', label: 'Giá Nhập' },
+    { key: 'retailPrice', label: 'Giá Bán' },
+    { key: 'quantity', label: 'SL' },
+    { key: 'total', label: 'Tổng' },
+    { key: 'profit', label: 'Lãi Cuối' },
+    { key: 'consignor', label: 'Ký Gửi' },
+    { key: 'status', label: 'Trạng thái' },
+    { key: 'actions', label: 'Sửa/Xóa' },
+];
 
 const RevenueTable: React.FC = () => {
     const [revenueData, setRevenueData] = useLocalStorage<RevenueEntry[]>('revenueData', initialData);
@@ -16,6 +31,7 @@ const RevenueTable: React.FC = () => {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<RevenueEntry | null>(null);
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('revenueVisibleColumns', REVENUE_COLUMNS.map(c => c.key));
 
     // Logic to sync with invoices
     const syncWithInvoices = (entry: RevenueEntry, action: 'add' | 'update' | 'remove') => {
@@ -222,6 +238,7 @@ const RevenueTable: React.FC = () => {
                             ))}
                         </select>
                     </div>
+                    <ColumnToggler columns={REVENUE_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
                     <button onClick={() => setIsImportModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm"><UploadIcon /> Nhập Excel</button>
                     <button onClick={() => handleOpenModal()} className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm"><PlusIcon /> Thêm Mới</button>
                 </div>
@@ -231,17 +248,14 @@ const RevenueTable: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                            <th className="px-3 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Ngày</th>
-                            <th className="px-2 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Khách hàng</th>
-                            <th className="px-2 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Sản Phẩm</th>
-                            <th className="px-2 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Giá Nhập</th>
-                            <th className="px-2 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Giá Bán</th>
-                            <th className="px-2 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">SL</th>
-                            <th className="px-2 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Tổng</th>
-                            <th className="px-2 py-3 text-right text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Lãi Cuối</th>
-                            <th className="px-2 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Ký Gửi</th>
-                            <th className="px-2 py-3 text-left text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Trạng thái</th>
-                            <th className="px-2 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">Sửa/Xóa</th>
+                           {REVENUE_COLUMNS.map(col => visibleColumns.includes(col.key) && (
+                                <th key={col.key} className={`px-2 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200 
+                                    ${['costPrice', 'retailPrice', 'total', 'profit'].includes(col.key) ? 'text-right' : 'text-left'}
+                                    ${['quantity', 'actions'].includes(col.key) ? 'text-center' : ''}
+                                `}>
+                                    {col.label}
+                                </th>
+                           ))}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
@@ -254,16 +268,16 @@ const RevenueTable: React.FC = () => {
                             
                             return (
                                 <tr key={entry.id} className={`${getStatusStyles(entry.status)} hover:opacity-95 transition-opacity`}>
-                                    <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-gray-900 border-b border-gray-50">{entry.customerName || 'Vãng lai'}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px] border-b border-gray-50" title={entry.productName}>{entry.productName}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-400 text-right italic border-b border-gray-50">{formatCurrency(entry.costPrice)}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] font-bold text-right border-b border-gray-50">{formatCurrency(entry.retailPrice)}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] text-center font-black border-b border-gray-50">{entry.quantity}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-teal-700 text-right border-b border-gray-50">{formatCurrency(total)}</td>
-                                    <td className={`px-2 py-3 whitespace-nowrap text-[11px] font-black text-right border-b border-gray-50 ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-[10px] font-bold text-purple-600 truncate max-w-[80px] border-b border-gray-50">{entry.consignor || '-'}</td>
-                                    <td className="px-2 py-3 whitespace-nowrap border-b border-gray-50">
+                                    {visibleColumns.includes('date') && <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>}
+                                    {visibleColumns.includes('customerName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-gray-900 border-b border-gray-50">{entry.customerName || 'Vãng lai'}</td>}
+                                    {visibleColumns.includes('productName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px] border-b border-gray-50" title={entry.productName}>{entry.productName}</td>}
+                                    {visibleColumns.includes('costPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-400 text-right italic border-b border-gray-50">{formatCurrency(entry.costPrice)}</td>}
+                                    {visibleColumns.includes('retailPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-bold text-right border-b border-gray-50">{formatCurrency(entry.retailPrice)}</td>}
+                                    {visibleColumns.includes('quantity') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-center font-black border-b border-gray-50">{entry.quantity}</td>}
+                                    {visibleColumns.includes('total') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-teal-700 text-right border-b border-gray-50">{formatCurrency(total)}</td>}
+                                    {visibleColumns.includes('profit') && <td className={`px-2 py-3 whitespace-nowrap text-[11px] font-black text-right border-b border-gray-50 ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</td>}
+                                    {visibleColumns.includes('consignor') && <td className="px-2 py-3 whitespace-nowrap text-[10px] font-bold text-purple-600 truncate max-w-[80px] border-b border-gray-50">{entry.consignor || '-'}</td>}
+                                    {visibleColumns.includes('status') && <td className="px-2 py-3 whitespace-nowrap border-b border-gray-50">
                                         <select 
                                             value={entry.status} 
                                             onChange={(e) => handleStatusChange(entry.id, e.target.value as RevenueStatus)}
@@ -273,17 +287,17 @@ const RevenueTable: React.FC = () => {
                                             <option value={RevenueStatus.SHIPPING}>Đang đi</option>
                                             <option value={RevenueStatus.DELIVERED}>Đã giao</option>
                                         </select>
-                                    </td>
-                                    <td className="px-2 py-3 whitespace-nowrap text-center border-b border-gray-50">
+                                    </td>}
+                                    {visibleColumns.includes('actions') && <td className="px-2 py-3 whitespace-nowrap text-center border-b border-gray-50">
                                         <div className="flex items-center justify-center space-x-1">
                                             <button onClick={() => handleOpenModal(entry)} className="p-1 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><EditIcon className="w-3.5 h-3.5" /></button>
                                             <button onClick={() => handleDelete(entry.id)} className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
                                         </div>
-                                    </td>
+                                    </td>}
                                 </tr>
                             );
                         }) : (
-                            <tr><td colSpan={11} className="text-center py-20 text-gray-400 italic bg-gray-50 font-medium">Tháng {selectedMonth} chưa có dữ liệu bán hàng.</td></tr>
+                            <tr><td colSpan={visibleColumns.length} className="text-center py-20 text-gray-400 italic bg-gray-50 font-medium">Tháng {selectedMonth} chưa có dữ liệu bán hàng.</td></tr>
                         )}
                     </tbody>
                 </table>

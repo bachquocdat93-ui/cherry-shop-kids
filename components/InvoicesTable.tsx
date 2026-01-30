@@ -40,13 +40,22 @@ const InvoicesTable = () => {
     // Effect to handle the image capture after the template component has rendered
     useEffect(() => {
         if (printingInvoice && printRef.current) {
-            html2canvas(printRef.current, { scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `HD_${activeTab}_${printingInvoice.customerName.replace(/\s+/g, '_')}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                setPrintingInvoice(null); // Clean up after download
-            });
+            // Add a delay to ensure all styles and fonts are rendered before capturing.
+            const timer = setTimeout(() => {
+                html2canvas(printRef.current, { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: false 
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `HD_${activeTab}_${printingInvoice.customerName.replace(/\s+/g, '_')}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    setPrintingInvoice(null); // Clean up after download
+                });
+            }, 500); // 500ms delay for rendering
+
+            return () => clearTimeout(timer);
         }
     }, [printingInvoice, activeTab]);
 

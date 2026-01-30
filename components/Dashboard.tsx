@@ -110,9 +110,22 @@ const Dashboard: React.FC = () => {
   }, [revenueData, consignmentData]);
 
   const handleClearAll = () => {
-    if (window.confirm("BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ DỮ LIỆU? (Doanh thu, Hóa đơn, Ký gửi)\nHành động này không thể khôi phục!")) {
-        if (window.confirm("Xác nhận xóa lần cuối?")) {
-            localStorage.clear();
+    const confirmationMessage = `
+      BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ DỮ LIỆU GIAO DỊCH?
+      (Bao gồm: Doanh thu, Hóa đơn, Ký gửi, Thông tin khách hàng)
+
+      Lưu ý: Cài đặt Cloud và tùy chỉnh cột sẽ được giữ lại.
+      Hành động này KHÔNG THỂ KHÔI PHỤC!
+    `.trim();
+
+    if (window.confirm(confirmationMessage)) {
+        if (window.confirm("Xác nhận xóa lần cuối? Dữ liệu sẽ mất vĩnh viễn.")) {
+            localStorage.removeItem('revenueData');
+            localStorage.removeItem('invoicesData');
+            localStorage.removeItem('consignmentData');
+            localStorage.removeItem('customersInfoData');
+            localStorage.removeItem('lastBackupAt');
+            localStorage.removeItem('lastCloudSyncAt');
             window.location.reload();
         }
     }
