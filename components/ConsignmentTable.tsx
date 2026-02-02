@@ -175,11 +175,13 @@ const ConsignmentTable: React.FC = () => {
     const calculateSummary = (customerItems: ConsignmentItem[]) => {
         const totalItems = customerItems.reduce((sum, item) => sum + item.quantity, 0);
         const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD).reduce((sum, item) => sum + item.quantity, 0);
+        const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED).reduce((sum, item) => sum + item.quantity, 0);
         const returnedItems = customerItems.filter(i => i.status === ConsignmentStatus.RETURNED).reduce((sum, item) => sum + item.quantity, 0);
+        const inStockItems = customerItems.filter(i => i.status === ConsignmentStatus.IN_STOCK).reduce((sum, item) => sum + item.quantity, 0);
         const totalTransferAmount = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
             .reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * item.quantity, 0);
 
-        return { totalItems, soldItems, returnedItems, totalValueSold: totalTransferAmount, totalTransferAmount };
+        return { totalItems, soldItems, depositedItems, returnedItems, inStockItems, totalValueSold: totalTransferAmount, totalTransferAmount };
     };
 
     const handleSettle = (customerName: string, customerItems: ConsignmentItem[]) => {
@@ -310,7 +312,9 @@ const ConsignmentTable: React.FC = () => {
                             <div className="bg-gray-50 p-4 rounded-xl flex flex-wrap justify-end gap-x-8 gap-y-3 text-xs border border-gray-100">
                                 <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Tổng sản phẩm:</span> <span className="font-black text-gray-900">{summary.totalItems}</span></div>
                                 <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã bán:</span> <span className="text-yellow-600 font-black">{summary.soldItems}</span></div>
+                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Mới cọc:</span> <span className="text-green-600 font-black">{summary.depositedItems}</span></div>
                                 <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã trả:</span> <span className="text-red-600 font-black">{summary.returnedItems}</span></div>
+                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Còn lại:</span> <span className="text-blue-600 font-black">{summary.inStockItems}</span></div>
                                 <div className="flex items-center gap-2 px-3 py-1 bg-purple-100 rounded-lg text-purple-700 font-black"><span className="uppercase text-[9px] mr-1">Tiền cần thanh toán:</span> {formatCurrency(summary.totalTransferAmount)}</div>
                             </div>
                         </div>)
@@ -321,7 +325,7 @@ const ConsignmentTable: React.FC = () => {
                         </p>
                     </div>
                 )}
-            </div >
+            </div>
 
             {totalPages > 1 && (
                 <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between items-center">
@@ -347,7 +351,7 @@ const ConsignmentTable: React.FC = () => {
 
             {isModalOpen && <ConsignmentModal item={editingItem} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} title="Nhập dữ liệu Ký gửi" instructions={importInstructions} onDownloadTemplate={generateConsignmentTemplate} />}
-        </div >
+        </div>
     );
 };
 

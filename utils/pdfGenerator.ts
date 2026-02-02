@@ -162,8 +162,12 @@ export const generateConsignmentPDF = async (customerName: string, items: Consig
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const soldItems = items.filter(i => i.status === ConsignmentStatus.SOLD);
     const soldQuantity = soldItems.reduce((sum, item) => sum + item.quantity, 0);
+    const depositedItems = items.filter(i => i.status === ConsignmentStatus.DEPOSITED);
+    const depositedQuantity = depositedItems.reduce((sum, item) => sum + item.quantity, 0);
     const returnedItems = items.filter(i => i.status === ConsignmentStatus.RETURNED);
     const returnedQuantity = returnedItems.reduce((sum, item) => sum + item.quantity, 0);
+    const inStockItems = items.filter(i => i.status === ConsignmentStatus.IN_STOCK);
+    const inStockQuantity = inStockItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalTransfer = soldItems.reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * item.quantity, 0);
 
     // Header
@@ -244,9 +248,9 @@ export const generateConsignmentPDF = async (customerName: string, items: Consig
     let finalY = (doc as any).lastAutoTable.finalY + 3;
 
     // Check if summary fits on page (A4 height is 297mm)
-    // Need slightly more space now (approx 60mm)
+    // Need slightly more space now (approx 76mm)
     const pageHeight = doc.internal.pageSize.height || 297;
-    if (finalY + 60 > pageHeight) {
+    if (finalY + 76 > pageHeight) {
         doc.addPage();
         finalY = 20; // Start at top of new page
     }
@@ -254,7 +258,7 @@ export const generateConsignmentPDF = async (customerName: string, items: Consig
     // Summary Box
     doc.setFillColor(248, 250, 252); // Very light gray/slate
     doc.setDrawColor(226, 232, 240); // Light border
-    doc.rect(20, finalY, 170, 52, 'FD'); // Increased height to 52
+    doc.rect(20, finalY, 170, 68, 'FD'); // Increased height to 68
 
     doc.setFontSize(11);
     doc.setTextColor(51, 65, 85); // Slate-700
@@ -273,21 +277,33 @@ export const generateConsignmentPDF = async (customerName: string, items: Consig
     doc.setTextColor(180, 83, 9); // Amber-700 for sold count
     doc.text(`${soldQuantity}`, 80, finalY + 28);
 
-    // Row 3: Returned (New)
+    // Row 3: Deposited (New)
     doc.setTextColor(71, 85, 105);
-    doc.text(`Đã trả lại:`, 30, finalY + 36);
+    doc.text(`Mới cọc:`, 30, finalY + 36);
+    doc.setTextColor(21, 128, 61); // Green-700 for deposited count
+    doc.text(`${depositedQuantity}`, 80, finalY + 36);
+
+    // Row 4: Returned
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Đã trả lại:`, 30, finalY + 44);
     doc.setTextColor(220, 38, 38); // Red-600 for returned count
-    doc.text(`${returnedQuantity}`, 80, finalY + 36);
+    doc.text(`${returnedQuantity}`, 80, finalY + 44);
+
+    // Row 5: Remaining
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Còn lại:`, 30, finalY + 52);
+    doc.setTextColor(37, 99, 235); // Blue-600 for remaining count
+    doc.text(`${inStockQuantity}`, 80, finalY + 52);
 
     // Divider
     doc.setDrawColor(200, 200, 200);
-    doc.line(30, finalY + 40, 180, finalY + 40);
+    doc.line(30, finalY + 56, 180, finalY + 56);
 
     doc.setFontSize(12);
     doc.setTextColor(220, 38, 38); // Red-600
-    doc.text(`Tổng tiền shop thanh toán:`, 30, finalY + 48);
+    doc.text(`Tổng tiền shop thanh toán:`, 30, finalY + 64); // Shifted down
     doc.setFontSize(14);
-    doc.text(`${formatCurrency(totalTransfer)}`, 180, finalY + 48, { align: 'right' });
+    doc.text(`${formatCurrency(totalTransfer)}`, 180, finalY + 64, { align: 'right' }); // Shifted down
 
     doc.save(`KyGui_${customerName.replace(/\s+/g, '_')}.pdf`);
 };
