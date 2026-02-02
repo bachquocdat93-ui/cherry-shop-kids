@@ -7,8 +7,7 @@ import InvoiceModal from './InvoiceModal';
 import ImportModal from './ImportModal';
 import { transformToInvoiceData } from '../utils/importer';
 import { generateInvoicesTemplate } from '../utils/templateGenerator';
-import html2canvas from 'html2canvas';
-import InvoiceTemplate from './InvoiceTemplate';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 
 const initialData: Invoice[] = [];
 
@@ -22,10 +21,8 @@ const InvoicesTable = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    
-    // State and ref for image export
-    const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
-    const printRef = useRef<HTMLDivElement>(null);
+
+    // State and ref for image export - REMOVED
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -37,27 +34,7 @@ const InvoicesTable = () => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [setInvoices]);
 
-    // Effect to handle the image capture after the template component has rendered
-    useEffect(() => {
-        if (printingInvoice && printRef.current) {
-            // Add a delay to ensure all styles and fonts are rendered before capturing.
-            const timer = setTimeout(() => {
-                html2canvas(printRef.current, { 
-                    scale: 2,
-                    useCORS: true,
-                    logging: false 
-                }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.download = `HD_${activeTab}_${printingInvoice.customerName.replace(/\s+/g, '_')}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                    setPrintingInvoice(null); // Clean up after download
-                });
-            }, 500); // 500ms delay for rendering
-
-            return () => clearTimeout(timer);
-        }
-    }, [printingInvoice, activeTab]);
+    // Effect for image capture REMOVED
 
     const handleOpenModal = (invoice: Invoice | null = null) => {
         setEditingInvoice(invoice);
@@ -68,7 +45,7 @@ const InvoicesTable = () => {
         setIsModalOpen(false);
         setEditingInvoice(null);
     };
-    
+
     const handleSave = (invoice: Invoice) => {
         if (editingInvoice) {
             setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
@@ -87,7 +64,7 @@ const InvoicesTable = () => {
     const handleClearAll = () => {
         setInvoices([]);
     };
-    
+
     const handleResetFilters = () => {
         setSearchTerm('');
         setStartDate('');
@@ -137,12 +114,12 @@ const InvoicesTable = () => {
                 return customerMatch || productMatch;
             });
         }
-        
+
         return processedInvoices;
     }, [invoices, activeTab, searchTerm, startDate, endDate, revenueData]);
 
-    const handleExportInvoiceImage = (invoice: Invoice) => {
-        setPrintingInvoice(invoice);
+    const handleExportInvoicePdf = (invoice: Invoice) => {
+        generateInvoicePDF(invoice);
     };
 
     const getTabColor = (status: RevenueStatus) => {
@@ -172,19 +149,19 @@ const InvoicesTable = () => {
             </div>
 
             <div className="flex border-b mb-6 overflow-x-auto">
-                <button 
+                <button
                     onClick={() => setActiveTab(RevenueStatus.HOLDING)}
                     className={`py-3 px-6 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === RevenueStatus.HOLDING ? getTabColor(RevenueStatus.HOLDING) : 'border-transparent text-gray-400'}`}
                 >
                     Dồn Đơn
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab(RevenueStatus.SHIPPING)}
                     className={`py-3 px-6 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === RevenueStatus.SHIPPING ? getTabColor(RevenueStatus.SHIPPING) : 'border-transparent text-gray-400'}`}
                 >
                     Đang Giao
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab(RevenueStatus.DELIVERED)}
                     className={`py-3 px-6 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === RevenueStatus.DELIVERED ? getTabColor(RevenueStatus.DELIVERED) : 'border-transparent text-gray-400'}`}
                 >
@@ -195,8 +172,8 @@ const InvoicesTable = () => {
             {/* Filter Section */}
             <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
                 <div className="w-full md:flex-1">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         placeholder="Tìm theo tên khách hoặc sản phẩm..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -204,14 +181,14 @@ const InvoicesTable = () => {
                     />
                 </div>
                 <div className="w-full md:w-auto flex gap-2 items-center text-sm">
-                    <input 
+                    <input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-xs"
                     />
-                     <span className="text-gray-400 font-bold">-</span>
-                     <input 
+                    <span className="text-gray-400 font-bold">-</span>
+                    <input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
@@ -232,25 +209,25 @@ const InvoicesTable = () => {
                                     <p className="font-bold text-lg text-gray-900 leading-tight">{invoice.customerName}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button 
-                                        onClick={() => handleExportInvoiceImage(invoice)} 
+                                    <button
+                                        onClick={() => handleExportInvoicePdf(invoice)}
                                         className="p-1.5 text-green-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-green-100"
-                                        title="Xuất Ảnh Hóa Đơn"
+                                        title="Xuất File PDF"
                                     >
                                         <PdfIcon />
                                     </button>
-                                    
+
                                     {canModify && (
                                         <>
-                                            <button 
-                                                onClick={() => handleOpenModal(invoice)} 
+                                            <button
+                                                onClick={() => handleOpenModal(invoice)}
                                                 className="p-1.5 text-primary-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-primary-100"
                                                 title="Sửa hóa đơn"
                                             >
                                                 <EditIcon />
                                             </button>
-                                            <button 
-                                                onClick={() => handleDelete(invoice.id)} 
+                                            <button
+                                                onClick={() => handleDelete(invoice.id)}
                                                 className="p-1.5 text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100"
                                                 title="Xóa hóa đơn"
                                             >
@@ -260,7 +237,7 @@ const InvoicesTable = () => {
                                     )}
                                 </div>
                             </div>
-                            
+
                             {!canModify && (
                                 <div className="mb-3 px-2 py-1 bg-gray-100 text-[9px] font-bold text-gray-500 rounded uppercase tracking-tighter inline-block">
                                     Đã chốt - Không thể chỉnh sửa
@@ -299,23 +276,14 @@ const InvoicesTable = () => {
                         </div>
                     );
                 }) : (
-                     <div className="col-span-full py-20 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed">
+                    <div className="col-span-full py-20 text-center text-gray-400 italic bg-gray-50 rounded-2xl border border-dashed">
                         Không có hóa đơn nào khớp với bộ lọc trong tab "{activeTab}"
-                     </div>
+                    </div>
                 )}
             </div>
 
             {isModalOpen && <InvoiceModal invoice={editingInvoice} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={async (f) => { const d = await transformToInvoiceData(f); setInvoices(prev => [...prev, ...d]); }} title="Nhập hóa đơn" instructions={<p>Tên khách hàng trùng nhau sẽ được gộp.</p>} onDownloadTemplate={generateInvoicesTemplate} />}
-
-            {/* Hidden component for printing */}
-            {printingInvoice && (
-              <div style={{ position: 'absolute', left: '-9999px', top: 0, zIndex: -1 }}>
-                <div ref={printRef}>
-                  <InvoiceTemplate invoice={printingInvoice} activeTab={activeTab} />
-                </div>
-              </div>
-            )}
         </div>
     );
 };

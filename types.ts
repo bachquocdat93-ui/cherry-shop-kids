@@ -18,11 +18,11 @@ export enum RevenueStatus {
 }
 
 export interface InvoiceItem {
-    id: string;
-    productName: string;
-    sellingPrice: number;
-    quantity: number;
-    status: RevenueStatus;
+  id: string;
+  productName: string;
+  sellingPrice: number;
+  quantity: number;
+  status: RevenueStatus;
 }
 
 export interface Invoice {
@@ -36,6 +36,7 @@ export enum ConsignmentStatus {
   IN_STOCK = 'Còn hàng',
   DEPOSITED = 'Mới cọc',
   SOLD = 'Đã bán',
+  RETURNED = 'Trả hàng',
 }
 
 export interface ConsignmentItem {

@@ -29,19 +29,19 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.customerName || !formData.productName || formData.consignmentPrice <= 0) {
-        alert('Vui lòng điền các trường bắt buộc: Tên khách hàng, Tên sản phẩm, Giá gửi bán.');
-        return;
+      alert('Vui lòng điền các trường bắt buộc: Tên khách hàng, Tên sản phẩm, Giá gửi bán.');
+      return;
     }
     onSave({ ...formData, id: item?.id || generateUniqueId() });
   };
 
   const formFields = [
-      { name: 'customerName', label: 'Tên Khách Hàng', type: 'text', required: true },
-      { name: 'productName', label: 'Tên Sản Phẩm', type: 'text', required: true },
-      { name: 'consignmentPrice', label: 'Giá Gửi Bán', type: 'number', required: true },
-      { name: 'quantity', label: 'Số Lượng', type: 'number', required: true },
-      { name: 'consignmentFee', label: 'Phí ký gửi (%)', type: 'number', required: true },
-      { name: 'note', label: 'NOTE', type: 'textarea' },
+    { name: 'customerName', label: 'Tên Khách Hàng', type: 'text', required: true },
+    { name: 'productName', label: 'Tên Sản Phẩm', type: 'text', required: true },
+    { name: 'consignmentPrice', label: 'Giá Gửi Bán', type: 'number', required: true },
+    { name: 'quantity', label: 'Số Lượng', type: 'number', required: true },
+    { name: 'consignmentFee', label: 'Phí ký gửi (%)', type: 'number', required: true },
+    { name: 'note', label: 'NOTE', type: 'textarea' },
   ];
 
   return (
@@ -54,24 +54,25 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             {formFields.map(field => (
-                 <div key={field.name}>
-                    <label htmlFor={field.name} className="block text-sm font-medium text-gray-700">
-                        {field.label} {field.required && <span className="text-red-500">*</span>}
-                    </label>
-                    {field.type === 'textarea' ? (
-                         <textarea id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
-                    ) : (
-                        <input type={field.type} id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} required={field.required} min="0" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
-                    )}
-                </div>
+              <div key={field.name}>
+                <label htmlFor={field.name} className="block text-sm font-medium text-gray-700">
+                  {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+                {field.type === 'textarea' ? (
+                  <textarea id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+                ) : (
+                  <input type={field.type} id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} required={field.required} min="0" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+                )}
+              </div>
             ))}
-             <div>
-                <label htmlFor="status" className="block text-sm font-medium text-gray-700">Trạng Thái</label>
-                <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
-                    <option value={ConsignmentStatus.IN_STOCK}>Còn hàng</option>
-                    <option value={ConsignmentStatus.DEPOSITED}>Mới cọc</option>
-                    <option value={ConsignmentStatus.SOLD}>Đã bán</option>
-                </select>
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700">Trạng Thái</label>
+              <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
+                <option value={ConsignmentStatus.IN_STOCK}>Còn hàng</option>
+                <option value={ConsignmentStatus.DEPOSITED}>Mới cọc</option>
+                <option value={ConsignmentStatus.SOLD}>Đã bán</option>
+                <option value={ConsignmentStatus.RETURNED}>Trả hàng</option>
+              </select>
             </div>
             <div className="flex justify-end pt-4 space-x-2">
               <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
