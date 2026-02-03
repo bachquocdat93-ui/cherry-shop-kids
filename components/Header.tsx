@@ -66,10 +66,6 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
           </button>
           <div className="flex items-center gap-4">
             <div className="flex bg-white/10 rounded-lg p-1 mr-2">
-              <button onClick={handlePush} className="p-2 hover:bg-white/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1" title="Đẩy lên Cloud">
-                <UploadIcon className="w-4 h-4" /> Cloud Lên
-              </button>
-              <div className="w-px bg-white/20 mx-1"></div>
               <button onClick={handlePull} className="p-2 hover:bg-white/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1" title="Tải về máy">
                 <SyncIcon className="w-4 h-4" /> Cloud Về
               </button>
