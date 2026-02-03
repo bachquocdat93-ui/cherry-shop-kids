@@ -35,6 +35,7 @@ const ConsignmentTable: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('consignmentVisibleColumns', CONSIGNMENT_COLUMNS.map(c => c.key));
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Image export effects removed
 
@@ -113,6 +114,31 @@ const ConsignmentTable: React.FC = () => {
     const handleClearAll = () => {
         if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu ký gửi không? Hành động này không thể hoàn tác.')) {
             setItems([]);
+        }
+    };
+
+    const toggleSelectAll = () => {
+        // Flatten all items currently visible (filtered)
+        const allVisibleItems = filteredEntries.flatMap(([_, items]) => items);
+        if (selectedIds.length === allVisibleItems.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(allVisibleItems.map(i => i.id));
+        }
+    };
+
+    const toggleSelectOne = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        } else {
+            setSelectedIds(prev => [...prev, id]);
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} mục ký gửi đã chọn?`)) {
+            setItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
+            setSelectedIds([]);
         }
     };
 
@@ -218,6 +244,11 @@ const ConsignmentTable: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {selectedIds.length > 0 && (
+                        <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-sm flex items-center gap-2">
+                            <TrashIcon className="w-5 h-5" /> Xóa {selectedIds.length} mục
+                        </button>
+                    )}
                     <ColumnToggler columns={CONSIGNMENT_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
                     <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-sm">
                         <UploadIcon />
@@ -280,6 +311,22 @@ const ConsignmentTable: React.FC = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-100">
                                         <tr>
+                                            <th className="px-4 py-3 w-8 text-center">
+                                                <input // Select All for this specific customer group, actually global select for simplicity
+                                                    type="checkbox"
+                                                    checked={customerItems.every(i => selectedIds.includes(i.id)) && customerItems.length > 0}
+                                                    onChange={() => {
+                                                        const allSelected = customerItems.every(i => selectedIds.includes(i.id));
+                                                        if (allSelected) {
+                                                            setSelectedIds(prev => prev.filter(id => !customerItems.map(i => i.id).includes(id)));
+                                                        } else {
+                                                            const newIds = customerItems.map(i => i.id).filter(id => !selectedIds.includes(id));
+                                                            setSelectedIds(prev => [...prev, ...newIds]);
+                                                        }
+                                                    }}
+                                                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                                                />
+                                            </th>
                                             {CONSIGNMENT_COLUMNS.map(col => visibleColumns.includes(col.key) && (
                                                 <th key={col.key} className="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{col.label}</th>
                                             ))}
@@ -288,8 +335,17 @@ const ConsignmentTable: React.FC = () => {
                                     <tbody className="bg-white divide-y divide-gray-100">
                                         {customerItems.map(item => {
                                             const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                            const isSelected = selectedIds.includes(item.id);
                                             return (
-                                                <tr key={item.id} className={`${getStatusRowClass(item.status)} hover:opacity-95 transition-opacity`}>
+                                                <tr key={item.id} className={`${getStatusRowClass(item.status)} hover:opacity-95 transition-opacity ${isSelected ? 'ring-2 ring-inset ring-blue-400 bg-blue-50' : ''}`}>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => toggleSelectOne(item.id)}
+                                                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                                                        />
+                                                    </td>
                                                     {visibleColumns.includes('productName') && <td className="px-4 py-3 whitespace-nowrap text-xs font-bold">{item.productName}</td>}
                                                     {visibleColumns.includes('consignmentPrice') && <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>}
                                                     {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.quantity}</td>}

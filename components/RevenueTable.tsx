@@ -32,6 +32,7 @@ const RevenueTable: React.FC = () => {
     const [editingEntry, setEditingEntry] = useState<RevenueEntry | null>(null);
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('revenueVisibleColumns', REVENUE_COLUMNS.map(c => c.key));
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Logic to sync with invoices
     const syncWithInvoices = (entry: RevenueEntry, action: 'add' | 'update' | 'remove') => {
@@ -166,6 +167,61 @@ const RevenueTable: React.FC = () => {
                 syncWithInvoices(entry, 'remove');
             }
             setRevenueData(prev => prev.filter(e => e.id !== id));
+            setSelectedIds(prev => prev.filter(selId => selId !== id));
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredData.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredData.map(e => e.id));
+        }
+    };
+
+    const toggleSelectOne = (id: string) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(prev => prev.filter(e => e !== id));
+        } else {
+            setSelectedIds(prev => [...prev, id]);
+        }
+    };
+
+    const handleBulkDelete = () => {
+        const count = selectedIds.length;
+        if (window.confirm(`Bạn có chắc muốn xóa ${count} mục doanh thu đã chọn?\nKho hàng sẽ được hoàn lại số lượng.`)) {
+            // Process reversal for each item
+            try {
+                const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+                if (shopDataRaw) {
+                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
+                    let changed = false;
+
+                    selectedIds.forEach(id => {
+                        const entry = revenueData.find(e => e.id === id);
+                        if (entry && entry.shopItemId) {
+                            const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
+                            if (shopIdx !== -1) {
+                                shopData[shopIdx].quantity += entry.quantity;
+                                changed = true;
+                            }
+                        }
+                        if (entry && entry.customerName) {
+                            syncWithInvoices(entry, 'remove');
+                        }
+                    });
+
+                    if (changed) {
+                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                        window.dispatchEvent(new Event('storage'));
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi hoàn kho bulk:", e);
+            }
+
+            setRevenueData(prev => prev.filter(e => !selectedIds.includes(e.id)));
+            setSelectedIds([]);
         }
     };
 
@@ -246,6 +302,11 @@ const RevenueTable: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {selectedIds.length > 0 && (
+                        <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm">
+                            <TrashIcon className="w-5 h-5" /> Xóa {selectedIds.length} mục
+                        </button>
+                    )}
                     <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200">
                         <span className="text-[10px] font-black uppercase text-gray-400 pl-2">Chọn tháng:</span>
                         <select
@@ -268,6 +329,14 @@ const RevenueTable: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
+                            <th className="px-2 py-3 w-8 bg-gray-50 border-b border-gray-200 text-center">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
+                                    onChange={toggleSelectAll}
+                                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                            </th>
                             {REVENUE_COLUMNS.map(col => visibleColumns.includes(col.key) && (
                                 <th key={col.key} className={`px-2 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200 
                                     ${['costPrice', 'retailPrice', 'total', 'profit'].includes(col.key) ? 'text-right' : 'text-left'}
@@ -285,9 +354,18 @@ const RevenueTable: React.FC = () => {
                             const isConsignment = entry.consignor && entry.consignor.trim() !== '';
                             const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
                             const rowFinalProfit = profit + consignmentBonus;
+                            const isSelected = selectedIds.includes(entry.id);
 
                             return (
-                                <tr key={entry.id} className={`${getStatusStyles(entry.status)} hover:opacity-95 transition-opacity`}>
+                                <tr key={entry.id} className={`${getStatusStyles(entry.status)} hover:opacity-95 transition-opacity ${isSelected ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
+                                    <td className="px-2 py-3 border-b border-gray-50 text-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleSelectOne(entry.id)}
+                                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                    </td>
                                     {visibleColumns.includes('date') && <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>}
                                     {visibleColumns.includes('customerName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-gray-900 border-b border-gray-50">{entry.customerName || 'Vãng lai'}</td>}
                                     {visibleColumns.includes('productName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px] border-b border-gray-50" title={entry.productName}>{entry.productName}</td>}

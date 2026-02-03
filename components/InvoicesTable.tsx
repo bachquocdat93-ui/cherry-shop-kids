@@ -21,6 +21,7 @@ const InvoicesTable = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // State and ref for image export - REMOVED
 
@@ -82,6 +83,62 @@ const InvoicesTable = () => {
                 console.error("Lỗi hoàn kho:", e);
             }
             setInvoices(prev => prev.filter(i => i.id !== id));
+            setSelectedIds(prev => prev.filter(selId => selId !== id));
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredInvoices.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredInvoices.map(i => i.id));
+        }
+    };
+
+    const toggleSelectOne = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (selectedIds.includes(id)) {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        } else {
+            setSelectedIds(prev => [...prev, id]);
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} hóa đơn đã chọn?\nKho hàng sẽ được cộng lại số lượng tương ứng.`)) {
+            // Revert Stock loop
+            try {
+                const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+                if (shopDataRaw) {
+                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
+                    let changed = false;
+
+                    selectedIds.forEach(id => {
+                        const invoice = invoices.find(i => i.id === id);
+                        if (invoice) {
+                            invoice.items.forEach(item => {
+                                if (item.shopItemId) {
+                                    const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                                    if (shopItemIdx !== -1) {
+                                        shopData[shopItemIdx].quantity += item.quantity;
+                                        changed = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    if (changed) {
+                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                        window.dispatchEvent(new Event('storage'));
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi hoàn kho bulk:", e);
+            }
+
+            setInvoices(prev => prev.filter(i => !selectedIds.includes(i.id)));
+            setSelectedIds([]);
         }
     };
 
@@ -167,6 +224,11 @@ const InvoicesTable = () => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2">
+                    {selectedIds.length > 0 && (
+                        <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-sm flex items-center gap-2">
+                            <TrashIcon className="w-5 h-5" /> Xóa ({selectedIds.length})
+                        </button>
+                    )}
                     <button onClick={() => setIsImportModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Nhập Excel</button>
                     <button onClick={() => handleOpenModal()} className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors">Tạo Hóa Đơn</button>
                 </div>
@@ -220,17 +282,36 @@ const InvoicesTable = () => {
                     />
                 </div>
                 <button onClick={handleResetFilters} className="text-xs font-bold text-gray-500 hover:text-primary p-2 rounded-lg">Reset</button>
+                <div className="flex items-center ml-4 gap-2">
+                    <input
+                        type="checkbox"
+                        checked={filteredInvoices.length > 0 && selectedIds.length === filteredInvoices.length}
+                        onChange={toggleSelectAll}
+                        id="selectAllInvoices"
+                        className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                    />
+                    <label htmlFor="selectAllInvoices" className="text-sm font-bold text-gray-700 cursor-pointer select-none">Chọn Tất Cả</label>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredInvoices.length > 0 ? filteredInvoices.map((invoice) => {
                     const totalPrice = invoice.items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
+                    const isSelected = selectedIds.includes(invoice.id);
                     return (
-                        <div key={invoice.id} className={`border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md ${activeTab === RevenueStatus.HOLDING ? 'bg-white border-gray-100' : activeTab === RevenueStatus.SHIPPING ? 'bg-green-50/30 border-green-100' : 'bg-yellow-50/30 border-yellow-100'}`}>
+                        <div key={invoice.id} onClick={(e) => toggleSelectOne(invoice.id, e)} className={`border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md cursor-pointer ${isSelected ? 'ring-2 ring-primary bg-blue-50/20' : ''} ${activeTab === RevenueStatus.HOLDING ? 'bg-white border-gray-100' : activeTab === RevenueStatus.SHIPPING ? 'bg-green-50/30 border-green-100' : 'bg-yellow-50/30 border-yellow-100'}`}>
                             <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="font-black text-gray-400 uppercase text-[10px] tracking-widest mb-1">Khách hàng</h3>
-                                    <p className="font-bold text-lg text-gray-900 leading-tight">{invoice.customerName}</p>
+                                <div className="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => toggleSelectOne(invoice.id, e)}
+                                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <div>
+                                        <h3 className="font-black text-gray-400 uppercase text-[10px] tracking-widest mb-1">Khách hàng</h3>
+                                        <p className="font-bold text-lg text-gray-900 leading-tight">{invoice.customerName}</p>
+                                    </div>
                                 </div>
                                 <div className="flex gap-1">
                                     <button
@@ -308,7 +389,7 @@ const InvoicesTable = () => {
 
             {isModalOpen && <InvoiceModal invoice={editingInvoice} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={async (f) => { const d = await transformToInvoiceData(f); setInvoices(prev => [...prev, ...d]); }} title="Nhập hóa đơn" instructions={<p>Tên khách hàng trùng nhau sẽ được gộp.</p>} onDownloadTemplate={generateInvoicesTemplate} />}
-        </div>
+        </div >
     );
 };
 
