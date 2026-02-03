@@ -33,6 +33,7 @@ const RevenueTable: React.FC = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('revenueVisibleColumns', REVENUE_COLUMNS.map(c => c.key));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Logic to sync with invoices
     const syncWithInvoices = (entry: RevenueEntry, action: 'add' | 'update' | 'remove') => {
@@ -250,8 +251,18 @@ const RevenueTable: React.FC = () => {
 
     // Calculate stats specifically for the selected month
     const filteredData = useMemo(() => {
-        return revenueData.filter(e => e.date.startsWith(selectedMonth));
-    }, [revenueData, selectedMonth]);
+        let data = revenueData.filter(e => e.date.startsWith(selectedMonth));
+
+        if (searchTerm.trim()) {
+            const lowerTerm = searchTerm.toLowerCase();
+            data = data.filter(e =>
+                (e.customerName || '').toLowerCase().includes(lowerTerm) ||
+                (e.productName || '').toLowerCase().includes(lowerTerm)
+            );
+        }
+
+        return data;
+    }, [revenueData, selectedMonth, searchTerm]);
 
     const stats = useMemo(() => {
         const totalRevenue = filteredData.reduce((sum, e) => sum + (e.retailPrice * e.quantity), 0);
@@ -301,6 +312,17 @@ const RevenueTable: React.FC = () => {
                         <ClearIcon className="w-3 h-3" /> Xóa dữ liệu tháng
                     </button>
                 </div>
+
+                <div className="flex-1 max-w-xs mx-4">
+                    <input
+                        type="text"
+                        placeholder="Tìm khách hàng, sản phẩm..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                    />
+                </div>
+
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                     {selectedIds.length > 0 && (
                         <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm">
