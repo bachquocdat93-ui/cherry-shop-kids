@@ -9,12 +9,17 @@ const AutoSyncManager: React.FC = () => {
     useEffect(() => {
         let timeout: NodeJS.Timeout;
 
-        const handleStorageChange = (e: StorageEvent | Event) => {
-            // If triggered by our own 'storage' dispatch, e might not be a StorageEvent
-            // Check if it's a relevant key if possible (StorageEvent only)
-            if (e instanceof StorageEvent) {
-                if (e.key === 'supabase_config' || e.key === 'lastCloudSyncAt') return;
-            }
+        const handleDataChange = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            const key = customEvent.detail?.key;
+
+            // Only sync if these specific data keys change
+            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData'];
+            if (!key || !watchedKeys.includes(key)) return;
+
+            // Check if Cloud is configured
+            const config = localStorage.getItem('supabase_config');
+            if (!config) return;
 
             setStatus('saving');
             clearTimeout(timeout);
@@ -40,10 +45,10 @@ const AutoSyncManager: React.FC = () => {
             }, 3000); // Wait 3 seconds of inactivity before saving
         };
 
-        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('local-data-change', handleDataChange);
 
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('local-data-change', handleDataChange);
             clearTimeout(timeout);
         };
     }, []);

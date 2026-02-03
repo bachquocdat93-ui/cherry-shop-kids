@@ -17,7 +17,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
         const valueToStore =
           value instanceof Function ? value(currentValue) : value;
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key } }));
         return valueToStore;
       });
     } catch (error) {
