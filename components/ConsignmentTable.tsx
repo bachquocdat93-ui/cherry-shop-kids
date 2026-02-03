@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import { ConsignmentItem, ConsignmentStatus } from '../types';
+import { ConsignmentItem, ConsignmentStatus, RevenueEntry, RevenueStatus } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon } from './Icons';
 import ConsignmentModal from './ConsignmentModal';
 import ImportModal from './ImportModal';
@@ -29,6 +29,7 @@ const CONSIGNMENT_COLUMNS = [
 
 const ConsignmentTable: React.FC = () => {
     const [items, setItems] = useLocalStorage<ConsignmentItem[]>('consignmentData', initialData);
+    const [revenueData, setRevenueData] = useLocalStorage<RevenueEntry[]>('revenueData', []);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<ConsignmentItem | null>(null);
@@ -222,15 +223,40 @@ const ConsignmentTable: React.FC = () => {
 
             - Số sản phẩm đã bán: ${summary.soldItems}
             - Tổng số tiền chuyển lại: ${formatCurrency(summary.totalTransferAmount)}
+            - Lợi nhuận cửa hàng (Phí): ${formatCurrency(summary.totalValueSold - summary.totalTransferAmount)}
 
-            Hành động này sẽ XÓA tất cả các sản phẩm có trạng thái "Đã bán" của khách hàng này khỏi danh sách ký gửi.
+            Hành động này sẽ:
+            1. Tạo doanh thu lợi nhuận cho cửa hàng.
+            2. XÓA các sản phẩm "Đã bán" khỏi danh sách.
         `;
 
         if (window.confirm(confirmationMessage)) {
+            // 1. Generate Revenue Entries for the Shop's Profit
+            const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD);
+            const newRevenueEntries: RevenueEntry[] = soldItems.map(item => {
+                const profitPerItem = item.consignmentPrice * (item.consignmentFee / 100);
+                return {
+                    id: crypto.randomUUID(),
+                    date: new Date().toISOString(), // Settle Date
+                    customerName: `[Ký Gửi] ${item.customerName}`,
+                    productName: `Phí ký gửi: ${item.productName}`,
+                    costPrice: 0, // Pure profit
+                    retailPrice: profitPerItem, // The fee is the revenue
+                    quantity: item.quantity,
+                    note: `Thanh toán hàng ký gửi. Giá bán gốc: ${item.consignmentPrice}`,
+                    status: RevenueStatus.DELIVERED,
+                    consignor: item.customerName
+                };
+            });
+
+            setRevenueData(prev => [...prev, ...newRevenueEntries]);
+
+            // 2. Remove settled items
             setItems(prevItems => prevItems.filter(item => {
                 return item.customerName !== customerName || item.status !== ConsignmentStatus.SOLD;
             }));
-            alert(`Đã thanh toán thành công cho ${customerName} và xóa các mục đã bán.`);
+
+            alert(`Đã thanh toán thành công!\nĐã thêm ${formatCurrency(summary.totalValueSold - summary.totalTransferAmount)} vào doanh thu.`);
         }
     };
 

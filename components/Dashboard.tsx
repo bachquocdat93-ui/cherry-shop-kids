@@ -54,7 +54,7 @@ const RevenueProfitChart: React.FC<{ data: ChartData[] }> = ({ data }) => {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-          <span className="text-xs font-bold text-gray-500">Lợi nhuận</span>
+          <span className="text-xs font-bold text-gray-500">Lợi nhuận gộp</span>
         </div>
       </div>
 
@@ -86,7 +86,7 @@ const RevenueProfitChart: React.FC<{ data: ChartData[] }> = ({ data }) => {
               <div className="absolute bottom-full mb-2 bg-gray-900 text-white text-xs p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none shadow-xl transform translate-y-2 group-hover:translate-y-0">
                 <div className="font-bold mb-1 opacity-50 uppercase tracking-widest text-[10px]">Tháng {item.month}</div>
                 <div className="flex justify-between gap-4"><span>Doanh thu:</span> <span className="font-bold text-primary-200">{formatShortCurrency(item.revenue)}</span></div>
-                <div className="flex justify-between gap-4"><span>Lợi nhuận:</span> <span className="font-bold text-purple-200">{formatShortCurrency(item.profit)}</span></div>
+                <div className="flex justify-between gap-4"><span>Lợi nhuận gộp:</span> <span className="font-bold text-purple-200">{formatShortCurrency(item.profit)}</span></div>
               </div>
             </div>
           );
@@ -125,8 +125,18 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const dashboardData = useMemo(() => {
-    const totalRevenue = revenueData.reduce((sum, item) => sum + item.retailPrice * item.quantity, 0);
-    const totalProfit = revenueData.reduce((sum, item) => sum + (item.retailPrice * item.quantity) - (item.costPrice * item.quantity), 0);
+    // Filter out generated "Fee" entries to avoid double counting
+    const validEntries = revenueData.filter(e => !e.productName.startsWith('Phí ký gửi:'));
+
+    const calculateProfit = (item: RevenueEntry) => {
+      const baseProfit = (item.retailPrice - item.costPrice) * item.quantity;
+      const isConsignment = item.consignor && item.consignor.trim() !== '';
+      // Formula: Profit + CostPrice * 20%
+      return baseProfit + (isConsignment ? (item.costPrice * 0.20 * item.quantity) : 0);
+    };
+
+    const totalRevenue = validEntries.reduce((sum, item) => sum + item.retailPrice * item.quantity, 0);
+    const totalProfit = validEntries.reduce((sum, item) => sum + calculateProfit(item), 0);
     const activeConsignments = consignmentData.filter(item => item.status === ConsignmentStatus.IN_STOCK).length;
 
     // Chart data: Last 6 Months
@@ -140,12 +150,12 @@ const Dashboard: React.FC = () => {
       monthlyStats[key] = { revenue: 0, profit: 0 };
     }
 
-    revenueData.forEach(entry => {
+    validEntries.forEach(entry => {
       const d = new Date(entry.date);
       const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
       if (monthlyStats[key]) {
         monthlyStats[key].revenue += entry.retailPrice * entry.quantity;
-        monthlyStats[key].profit += (entry.retailPrice * entry.quantity) - (entry.costPrice * entry.quantity);
+        monthlyStats[key].profit += calculateProfit(entry);
       }
     });
 
@@ -155,13 +165,18 @@ const Dashboard: React.FC = () => {
       profit: stats.profit
     }));
 
-    // Recent activity
-    const recentActivity = [...revenueData]
+    // Recent activity with calculated profit
+    const recentActivity = [...validEntries]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+      .slice(0, 5)
+      .map(entry => ({
+        ...entry,
+        calculatedProfit: calculateProfit(entry)
+      }));
 
     return { totalRevenue, totalProfit, activeConsignments, chartData, recentActivity };
   }, [revenueData, consignmentData]);
+
 
   const handleClearAll = () => {
     const confirmationMessage = `
@@ -240,7 +255,7 @@ const Dashboard: React.FC = () => {
                       {entry.customerName || 'Khách vãng lai'} đã mua <span className="text-primary-600">{entry.productName}</span>
                     </p>
                     <p className="text-[10px] text-gray-500">
-                      Giá trị: {formatCurrency(entry.retailPrice * entry.quantity)} • <span className="text-green-600">Lãi: {formatCurrency((entry.retailPrice - entry.costPrice) * entry.quantity)}</span>
+                      Giá trị: {formatCurrency(entry.retailPrice * entry.quantity)} • <span className="text-green-600">Lãi: {formatCurrency((entry as any).calculatedProfit)}</span>
                     </p>
                   </div>
                 </div>
