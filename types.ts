@@ -8,6 +8,7 @@ export interface RevenueEntry {
   quantity: number;
   note?: string;
   consignor?: string;
+  shopItemId?: string; // Link to Shop Inventory
   status: RevenueStatus;
 }
 
@@ -23,6 +24,7 @@ export interface InvoiceItem {
   sellingPrice: number;
   quantity: number;
   status: RevenueStatus;
+  shopItemId?: string; // Link to Shop Inventory
 }
 
 export interface Invoice {
@@ -56,4 +58,13 @@ export interface CustomerInfo {
   address?: string;
 }
 
-export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers';
+export interface ShopItem {
+  id: string;
+  productName: string;
+  importPrice: number;
+  retailPrice: number;
+  quantity: number;
+  note?: string;
+}
+
+export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers' | 'inventory';

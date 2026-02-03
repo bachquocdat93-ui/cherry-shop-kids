@@ -16,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
     { id: 'consignment', label: 'Ký gửi' },
     { id: 'customers', label: 'Khách hàng', icon: <UsersIcon className="w-4 h-4 mr-1" /> },
     { id: 'reports', label: 'Báo cáo' },
+    { id: 'inventory', label: 'Kho Hàng' },
   ];
 
   return (
@@ -34,11 +35,10 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
                 <button
                   key={item.id}
                   onClick={() => setCurrentPage(item.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors duration-200 ${
-                    currentPage === item.id
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors duration-200 ${currentPage === item.id
                       ? 'bg-white text-primary-600 shadow-md'
                       : 'hover:bg-white/20'
-                  }`}
+                    }`}
                 >
                   {item.icon}
                   <span>{item.label}</span>

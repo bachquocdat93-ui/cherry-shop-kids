@@ -3,11 +3,12 @@ import Header from './components/Header';
 import RevenueTable from './components/RevenueTable';
 import InvoicesTable from './components/InvoicesTable';
 import ConsignmentTable from './components/ConsignmentTable';
+import ShopInventoryTable from './components/ShopInventoryTable';
 import Dashboard from './components/Dashboard';
 import ReportsPage from './components/ReportsPage';
 import CustomersPage from './components/CustomersPage';
 import SheetSyncModal from './components/SheetSyncModal';
-import type { RevenueEntry, Invoice, ConsignmentItem } from './types';
+import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem } from './types';
 import type { Page } from './types';
 
 const App: React.FC = () => {
@@ -24,6 +25,8 @@ const App: React.FC = () => {
         return <InvoicesTable />;
       case 'consignment':
         return <ConsignmentTable />;
+      case 'inventory':
+        return <ShopInventoryTable />;
       case 'reports':
         return <ReportsPage />;
       case 'customers':
@@ -37,12 +40,16 @@ const App: React.FC = () => {
     revenueData: RevenueEntry[];
     invoicesData: Invoice[];
     consignmentData: ConsignmentItem[];
+    shopInventoryData?: ShopItem[];
   }) => {
     // Overwrite all data in local storage
     window.localStorage.setItem('revenueData', JSON.stringify(data.revenueData));
     window.localStorage.setItem('invoicesData', JSON.stringify(data.invoicesData));
     window.localStorage.setItem('consignmentData', JSON.stringify(data.consignmentData));
-    
+    if (data.shopInventoryData) {
+      window.localStorage.setItem('shopInventoryData', JSON.stringify(data.shopInventoryData));
+    }
+
     // Close modal and reload to reflect changes everywhere
     setIsSyncModalOpen(false);
     alert('Nhập dữ liệu thành công! Ứng dụng sẽ được tải lại để cập nhật.');
@@ -51,8 +58,8 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen bg-gray-100 text-gray-800 flex flex-col">
-      <Header 
-        currentPage={currentPage} 
+      <Header
+        currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
       />
@@ -60,8 +67,8 @@ const App: React.FC = () => {
         {renderPage()}
       </main>
       {isSyncModalOpen && (
-        <SheetSyncModal 
-          onClose={() => setIsSyncModalOpen(false)} 
+        <SheetSyncModal
+          onClose={() => setIsSyncModalOpen(false)}
           onImportSuccess={handleImportSuccess}
         />
       )}

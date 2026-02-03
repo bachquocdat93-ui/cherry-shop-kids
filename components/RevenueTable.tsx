@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem } from '../types';
+import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon } from './Icons';
 import RevenueModal from './RevenueModal';
 import ImportModal from './ImportModal';
@@ -44,7 +44,7 @@ const RevenueTable: React.FC = () => {
             const productKey = entry.productName.trim().toLowerCase();
 
             if (action === 'add') {
-                const existingInvoiceIndex = invoices.findIndex(inv => 
+                const existingInvoiceIndex = invoices.findIndex(inv =>
                     inv.customerName.trim().toLowerCase() === customerKey
                 );
 
@@ -54,6 +54,7 @@ const RevenueTable: React.FC = () => {
                     sellingPrice: entry.retailPrice,
                     quantity: entry.quantity,
                     status: entry.status,
+                    shopItemId: entry.shopItemId, // Link to shop inventory
                 };
 
                 if (existingInvoiceIndex !== -1) {
@@ -84,7 +85,7 @@ const RevenueTable: React.FC = () => {
                 invoices = invoices.map(invoice => {
                     if (invoice.customerName.trim().toLowerCase() === customerKey) {
                         const originalLen = invoice.items.length;
-                        invoice.items = invoice.items.filter(item => 
+                        invoice.items = invoice.items.filter(item =>
                             item.productName.trim().toLowerCase() !== productKey
                         );
                         if (invoice.items.length !== originalLen) changed = true;
@@ -113,16 +114,17 @@ const RevenueTable: React.FC = () => {
     };
 
     const handleSave = (entry: RevenueEntry) => {
+        const entryWithDefaultName = {
+            ...entry,
+            customerName: entry.customerName?.trim() || 'Khách lẻ'
+        };
+
         if (editingEntry) {
             setRevenueData(prev => prev.map(e => e.id === entry.id ? entry : e));
-            if (entry.customerName) {
-                syncWithInvoices(entry, 'update');
-            }
+            syncWithInvoices(entryWithDefaultName, 'update');
         } else {
             setRevenueData(prev => [...prev, entry]);
-            if (entry.customerName && entry.customerName.trim() !== '') {
-                syncWithInvoices(entry, 'add');
-            }
+            syncWithInvoices(entryWithDefaultName, 'add');
         }
         handleCloseModal();
     };
@@ -141,7 +143,25 @@ const RevenueTable: React.FC = () => {
 
     const handleDelete = (id: string) => {
         const entry = revenueData.find(e => e.id === id);
-        if (entry && window.confirm('Bạn có chắc chắn muốn xóa mục này?')) {
+        if (entry && window.confirm('Bạn có chắc chắn muốn xóa mục này?\nKho hàng sẽ được hoàn lại số lượng.')) {
+            // Reversal Logic
+            try {
+                if (entry.shopItemId) {
+                    const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+                    if (shopDataRaw) {
+                        let shopData: ShopItem[] = JSON.parse(shopDataRaw);
+                        const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
+                        if (shopIdx !== -1) {
+                            shopData[shopIdx].quantity += entry.quantity;
+                            window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi hoàn kho:", e);
+            }
+
             if (entry.customerName) {
                 syncWithInvoices(entry, 'remove');
             }
@@ -154,7 +174,7 @@ const RevenueTable: React.FC = () => {
             setRevenueData(prev => prev.filter(e => !e.date.startsWith(selectedMonth)));
         }
     };
-    
+
     const handleImport = async (file: File) => {
         try {
             const newData = await transformToRevenueData(file);
@@ -164,7 +184,7 @@ const RevenueTable: React.FC = () => {
             });
             alert(`Đã nhập thành công ${newData.length} mục doanh thu.`);
         } catch (error: any) {
-             alert(`Lỗi: ${error.message}`);
+            alert(`Lỗi: ${error.message}`);
         }
     };
 
@@ -226,7 +246,7 @@ const RevenueTable: React.FC = () => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                     <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200">
                         <span className="text-[10px] font-black uppercase text-gray-400 pl-2">Chọn tháng:</span>
                         <select
                             value={selectedMonth}
@@ -248,14 +268,14 @@ const RevenueTable: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                           {REVENUE_COLUMNS.map(col => visibleColumns.includes(col.key) && (
+                            {REVENUE_COLUMNS.map(col => visibleColumns.includes(col.key) && (
                                 <th key={col.key} className={`px-2 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200 
                                     ${['costPrice', 'retailPrice', 'total', 'profit'].includes(col.key) ? 'text-right' : 'text-left'}
                                     ${['quantity', 'actions'].includes(col.key) ? 'text-center' : ''}
                                 `}>
                                     {col.label}
                                 </th>
-                           ))}
+                            ))}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
@@ -265,7 +285,7 @@ const RevenueTable: React.FC = () => {
                             const isConsignment = entry.consignor && entry.consignor.trim() !== '';
                             const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
                             const rowFinalProfit = profit + consignmentBonus;
-                            
+
                             return (
                                 <tr key={entry.id} className={`${getStatusStyles(entry.status)} hover:opacity-95 transition-opacity`}>
                                     {visibleColumns.includes('date') && <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>}
@@ -278,8 +298,8 @@ const RevenueTable: React.FC = () => {
                                     {visibleColumns.includes('profit') && <td className={`px-2 py-3 whitespace-nowrap text-[11px] font-black text-right border-b border-gray-50 ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</td>}
                                     {visibleColumns.includes('consignor') && <td className="px-2 py-3 whitespace-nowrap text-[10px] font-bold text-purple-600 truncate max-w-[80px] border-b border-gray-50">{entry.consignor || '-'}</td>}
                                     {visibleColumns.includes('status') && <td className="px-2 py-3 whitespace-nowrap border-b border-gray-50">
-                                        <select 
-                                            value={entry.status} 
+                                        <select
+                                            value={entry.status}
                                             onChange={(e) => handleStatusChange(entry.id, e.target.value as RevenueStatus)}
                                             className="text-[9px] font-black uppercase py-0.5 px-2 rounded-full border-gray-200 focus:ring-primary focus:border-primary cursor-pointer shadow-sm bg-white"
                                         >
@@ -303,7 +323,7 @@ const RevenueTable: React.FC = () => {
                 </table>
             </div>
 
-             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="bg-teal-50 border-b-4 border-teal-500 p-6 rounded-3xl shadow-sm relative overflow-hidden">
                     <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-teal-500 w-24 h-24 rounded-full"></div>
                     <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-1">Doanh Thu Tháng {selectedMonth}</p>

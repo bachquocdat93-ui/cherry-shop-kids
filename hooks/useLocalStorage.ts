@@ -13,19 +13,31 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
 
   const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
     try {
-      // Allow value to be a function so we have the same API as useState.
-      // This pattern prevents bugs from stale state closures.
       setStoredValue(currentValue => {
         const valueToStore =
           value instanceof Function ? value(currentValue) : value;
-        // Save to local storage
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        window.dispatchEvent(new Event('storage'));
         return valueToStore;
       });
     } catch (error) {
       console.error(error);
     }
   };
+
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const item = window.localStorage.getItem(key);
+        setStoredValue(item ? JSON.parse(item) : initialValue);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [key, initialValue]);
 
   return [storedValue, setValue];
 }

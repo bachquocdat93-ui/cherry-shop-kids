@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import type { Invoice, InvoiceItem, RevenueEntry } from '../types';
+import type { Invoice, InvoiceItem, RevenueEntry, ShopItem } from '../types';
 import { RevenueStatus } from '../types';
 import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon } from './Icons';
 import InvoiceModal from './InvoiceModal';
@@ -56,7 +56,31 @@ const InvoicesTable = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa hóa đơn này?')) {
+        const invoice = invoices.find(i => i.id === id);
+        if (invoice && window.confirm('Bạn có chắc chắn muốn xóa hóa đơn này?\nKho hàng sẽ được cộng lại số lượng tương ứng.')) {
+            // Revert Stock
+            try {
+                const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+                if (shopDataRaw) {
+                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
+                    let changed = false;
+                    invoice.items.forEach(item => {
+                        if (item.shopItemId) {
+                            const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                            if (shopItemIdx !== -1) {
+                                shopData[shopItemIdx].quantity += item.quantity;
+                                changed = true;
+                            }
+                        }
+                    });
+                    if (changed) {
+                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                        window.dispatchEvent(new Event('storage'));
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi hoàn kho:", e);
+            }
             setInvoices(prev => prev.filter(i => i.id !== id));
         }
     };

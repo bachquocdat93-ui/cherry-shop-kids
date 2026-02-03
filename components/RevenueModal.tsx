@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { RevenueEntry, RevenueStatus, ConsignmentItem } from '../types';
+import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem } from '../types';
 import { CloseIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -9,6 +9,8 @@ interface RevenueModalProps {
   onSave: (entry: RevenueEntry) => void;
   onClose: () => void;
 }
+
+type ItemSource = 'manual' | 'shop' | 'consignor';
 
 const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) => {
   const [formData, setFormData] = useState<Omit<RevenueEntry, 'id'>>({
@@ -20,20 +22,60 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
     quantity: entry?.quantity || 1,
     note: entry?.note || '',
     consignor: entry?.consignor || '',
+    shopItemId: entry?.shopItemId || '',
     status: entry?.status || RevenueStatus.HOLDING,
   });
 
-  const [consignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
+  const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
+  const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
+
+  // Initialize source based on entry data
+  const [source, setSource] = useState<ItemSource>(() => {
+    if (entry?.consignor) return 'consignor';
+    if (entry?.shopItemId) return 'shop';
+    return 'manual';
+  });
+
+  const [selectedShopItemId, setSelectedShopItemId] = useState<string>(entry?.shopItemId || '');
 
   const consignors = useMemo(() => {
     const names = new Set(consignmentData.map(item => item.customerName));
     return Array.from(names);
   }, [consignmentData]);
 
+  const shopItems = useMemo(() => shopInventoryData, [shopInventoryData]);
+
   const consignedProducts = useMemo(() => {
-    if (!formData.consignor) return [];
+    if (source !== 'consignor' || !formData.consignor) return [];
     return consignmentData.filter(item => item.customerName === formData.consignor);
-  }, [formData.consignor, consignmentData]);
+  }, [source, formData.consignor, consignmentData]);
+
+  const handleSourceChange = (newSource: ItemSource) => {
+    setSource(newSource);
+    setFormData(prev => ({
+      ...prev,
+      consignor: '',
+      productName: '',
+      costPrice: 0,
+      retailPrice: 0,
+      shopItemId: ''
+    }));
+    setSelectedShopItemId('');
+  };
+
+  const handleShopItemChange = (itemId: string) => {
+    setSelectedShopItemId(itemId);
+    const item = shopInventoryData.find(i => i.id === itemId);
+    if (item) {
+      setFormData(prev => ({
+        ...prev,
+        productName: item.productName,
+        costPrice: item.importPrice,
+        retailPrice: item.retailPrice,
+        shopItemId: itemId
+      }));
+    }
+  };
 
   const handleConsignorChange = (consignorName: string) => {
     setFormData(prev => ({
@@ -43,6 +85,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
       productName: '',
       costPrice: 0,
       retailPrice: 0,
+      shopItemId: ''
     }));
   };
 
@@ -73,6 +116,81 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
       alert('Vui lòng điền các trường bắt buộc: Tên sản phẩm, Giá bán, Số lượng.');
       return;
     }
+
+    // Deduction Logic & Price Sync - DIRECT LOCALSTORAGE ACCESS
+    try {
+      const currentShopDataRaw = window.localStorage.getItem('shopInventoryData') || '[]';
+      let currentShopData: ShopItem[] = JSON.parse(currentShopDataRaw);
+      let inventoryChanged = false;
+
+      const currentConsignmentRaw = window.localStorage.getItem('consignmentData') || '[]';
+      let currentConsignmentData: ConsignmentItem[] = JSON.parse(currentConsignmentRaw);
+      let consignmentChanged = false;
+
+      if (!entry) {
+        // NEW ENTRY - DEDUCT
+        if (source === 'shop' && selectedShopItemId) {
+          const shopIdx = currentShopData.findIndex(i => i.id === selectedShopItemId);
+          if (shopIdx !== -1) {
+            const qtyToDeduct = formData.quantity;
+
+            currentShopData[shopIdx] = {
+              ...currentShopData[shopIdx],
+              quantity: currentShopData[shopIdx].quantity - qtyToDeduct, // Deduct
+              retailPrice: formData.retailPrice, // Sync Price
+              importPrice: formData.costPrice
+            };
+            inventoryChanged = true;
+          }
+        } else if (source === 'consignor' && formData.consignor) {
+          const conItemIdx = currentConsignmentData.findIndex(c => c.customerName === formData.consignor && c.productName === formData.productName && c.consignmentPrice === formData.retailPrice);
+          if (conItemIdx !== -1) {
+            currentConsignmentData[conItemIdx].quantity -= formData.quantity;
+            consignmentChanged = true;
+          }
+        }
+      } else {
+        // EDIT ENTRY - REVERT & APPLY
+        // 1. Revert Old
+        if (entry.shopItemId) {
+          const oldShopIdx = currentShopData.findIndex(i => i.id === entry.shopItemId);
+          if (oldShopIdx !== -1) {
+            currentShopData[oldShopIdx].quantity += entry.quantity; // Add back
+            inventoryChanged = true;
+          }
+        }
+        // 2. Apply New
+        if (source === 'shop' && selectedShopItemId) {
+          const newShopIdx = currentShopData.findIndex(i => i.id === selectedShopItemId);
+          if (newShopIdx !== -1) {
+            currentShopData[newShopIdx] = {
+              ...currentShopData[newShopIdx],
+              quantity: currentShopData[newShopIdx].quantity - formData.quantity, // Deduct new
+              retailPrice: formData.retailPrice,
+              importPrice: formData.costPrice
+            };
+            inventoryChanged = true;
+          }
+        }
+      }
+
+      if (inventoryChanged) {
+        window.localStorage.setItem('shopInventoryData', JSON.stringify(currentShopData));
+        window.dispatchEvent(new Event('storage'));
+        setShopInventoryData(currentShopData);
+      }
+      if (consignmentChanged) {
+        window.localStorage.setItem('consignmentData', JSON.stringify(currentConsignmentData));
+        window.dispatchEvent(new Event('storage'));
+        setConsignmentData(currentConsignmentData);
+      }
+
+    } catch (error) {
+      console.error("Critical Error updating inventory:", error);
+      alert("Có lỗi xảy ra khi cập nhật kho hàng. Vui lòng thử lại.");
+      return;
+    }
+
     onSave({ ...formData, id: entry?.id || generateUniqueId() });
   };
 
@@ -95,23 +213,49 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
               <label htmlFor="customerName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên khách hàng</label>
               <input type="text" id="customerName" name="customerName" value={formData.customerName} onChange={handleChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
             </div>
+
             <div>
-              <label htmlFor="consignor" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Khách ký gửi (nếu có)</label>
-              <select id="consignor" name="consignor" value={formData.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
-                <option value="">Không (Hàng của shop)</option>
-                {consignors.map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nguồn hàng</label>
+              <div className="flex space-x-2">
+                <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'manual' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>Nhập tay</button>
+                <button type="button" onClick={() => handleSourceChange('shop')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'shop' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200'}`}>Kho Shop</button>
+                <button type="button" onClick={() => handleSourceChange('consignor')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'consignor' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}>Ký Gửi</button>
+              </div>
             </div>
+
+            {source === 'shop' && (
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Chọn sản phẩm trong kho</label>
+                <select value={selectedShopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
+                  <option value="">-- Chọn sản phẩm --</option>
+                  {shopItems.map(item => (
+                    <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                      {item.productName} (SL: {item.quantity}) {item.quantity <= 0 ? '- Hết hàng' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {source === 'consignor' && (
+              <div>
+                <label htmlFor="consignor" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Khách ký gửi</label>
+                <select id="consignor" name="consignor" value={formData.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
+                  <option value="">Chọn khách ký gửi...</option>
+                  {consignors.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+            )}
 
             <div>
               <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm <span className="text-red-500">*</span></label>
-              {formData.consignor ? (
+              {source === 'consignor' && formData.consignor ? (
                 <select id="productName" name="productName" onChange={(e) => handleConsignedProductChange(e.target.value)} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
                   <option value="">Chọn sản phẩm ký gửi...</option>
                   {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
                 </select>
               ) : (
-                <input type="text" id="productName" name="productName" value={formData.productName} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                <input type="text" id="productName" name="productName" value={formData.productName} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={source === 'shop'} />
               )}
             </div>
 
