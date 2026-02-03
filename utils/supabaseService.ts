@@ -17,21 +17,21 @@ export const saveCloudConfig = (config: CloudConfig) => {
 let supabaseInstance: SupabaseClient | null = null;
 
 export const getSupabaseClient = () => {
-    if (supabaseInstance) {
-        return supabaseInstance;
-    }
-    const config = getCloudConfig();
-    if (config?.url && config.key) {
-        supabaseInstance = createClient(config.url, config.key);
-        return supabaseInstance;
-    }
-    console.warn("Supabase client not initialized. Check your cloud config.");
-    return null;
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+  const config = getCloudConfig();
+  if (config?.url && config.key) {
+    supabaseInstance = createClient(config.url, config.key);
+    return supabaseInstance;
+  }
+  console.warn("Supabase client not initialized. Check your cloud config.");
+  return null;
 }
 
 export const resetSupabaseClient = () => {
-    supabaseInstance = null;
-    getSupabaseClient(); // Immediately try to create a new one
+  supabaseInstance = null;
+  getSupabaseClient(); // Immediately try to create a new one
 }
 
 
@@ -39,21 +39,22 @@ export const pushToCloud = async (data: {
   revenue: any[];
   invoices: any[];
   consignment: any[];
+  inventory?: any[];
 }) => {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error("Chưa cấu hình Supabase");
 
   // Xóa dữ liệu cũ và đẩy dữ liệu mới (Cách đơn giản cho shop nhỏ)
   // Trong thực tế nên dùng upsert, nhưng ở đây chúng ta ưu tiên tính đồng nhất
-  
-  const { error: err1 } = await supabase.from('shop_data').upsert({ 
-    id: 'current_store_data', 
+
+  const { error: err1 } = await supabase.from('shop_data').upsert({
+    id: 'current_store_data',
     content: data,
     updated_at: new Date().toISOString()
   });
 
   if (err1) throw err1;
-  
+
   localStorage.setItem('lastCloudSyncAt', new Date().toISOString());
   return true;
 };

@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard';
 import ReportsPage from './components/ReportsPage';
 import CustomersPage from './components/CustomersPage';
 import SheetSyncModal from './components/SheetSyncModal';
+import AutoSyncManager from './components/AutoSyncManager';
 import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem } from './types';
 import type { Page } from './types';
 
@@ -58,6 +59,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen bg-gray-100 text-gray-800 flex flex-col">
+      <AutoSyncManager />
       <Header
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
