@@ -301,53 +301,66 @@ const RevenueTable: React.FC = () => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                <div className="flex items-center gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg">
+            {/* Toolbar Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div className="flex items-center justify-between w-full md:w-auto gap-4">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800">Quản lý Doanh thu</h2>
-                        <p className="text-xs text-gray-400 font-medium">Lọc theo: <span className="text-primary font-bold">Tháng {selectedMonth}</span></p>
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Doanh thu</h2>
+                        <p className="text-xs text-gray-400 font-medium">Lọc: <span className="text-primary font-bold">T{selectedMonth}</span></p>
                     </div>
-                    <button onClick={handleClearAll} className="text-red-500 hover:text-red-700 text-[10px] flex items-center gap-1 font-black bg-red-50 px-2 py-1 rounded-lg transition-colors border border-red-100 uppercase tracking-tighter shadow-sm">
-                        <ClearIcon className="w-3 h-3" /> Xóa dữ liệu tháng
-                    </button>
+                    {/* Mobile Only: Add Button */}
+                    <button onClick={() => handleOpenModal()} className="md:hidden bg-primary text-white p-2 rounded-xl hover:bg-primary-700 transition-colors shadow-sm"><PlusIcon className="w-5 h-5" /></button>
                 </div>
 
-                <div className="flex-1 max-w-xs mx-4">
-                    <input
-                        type="text"
-                        placeholder="Tìm khách hàng, sản phẩm..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
-                    />
-                </div>
+                {/* Search & Actions */}
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:flex-1 md:justify-end items-stretch sm:items-center">
+                    <div className="relative flex-1 max-w-full sm:max-w-xs">
+                        <input
+                            type="text"
+                            placeholder="Tìm khách, SP..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                        />
+                    </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {selectedIds.length > 0 && (
-                        <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm">
-                            <TrashIcon className="w-5 h-5" /> Xóa {selectedIds.length} mục
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                        {/* Desktop Only Actions */}
+                        <button onClick={handleClearAll} className="whitespace-nowrap hidden lg:flex text-red-500 hover:text-red-700 text-[10px] items-center gap-1 font-black bg-red-50 px-2 py-1 rounded-lg border border-red-100 uppercase tracking-tighter">
+                            <ClearIcon className="w-3 h-3" /> Xóa tháng
                         </button>
-                    )}
-                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200">
-                        <span className="text-[10px] font-black uppercase text-gray-400 pl-2">Chọn tháng:</span>
-                        <select
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="rounded-lg border-none shadow-none focus:ring-0 sm:text-sm font-black bg-white px-3 py-1.5 cursor-pointer text-gray-800"
-                        >
-                            {availableMonths.map(month => (
-                                <option key={month} value={month}>Tháng {month}</option>
-                            ))}
-                        </select>
+
+                        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0">
+                            <select
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className="rounded-lg border-none shadow-none focus:ring-0 text-xs sm:text-sm font-black bg-white px-2 py-1.5 cursor-pointer text-gray-800"
+                            >
+                                {availableMonths.map(month => (
+                                    <option key={month} value={month}>T{month.slice(5)}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="hidden md:block">
+                            <ColumnToggler columns={REVENUE_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
+                        </div>
+
+                        {selectedIds.length > 0 && (
+                            <button onClick={handleBulkDelete} className="whitespace-nowrap bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs">
+                                <TrashIcon className="w-4 h-4" /> ({selectedIds.length})
+                            </button>
+                        )}
+
+                        <button onClick={() => setIsImportModalOpen(true)} className="whitespace-nowrap bg-blue-50 text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs"><UploadIcon className="w-4 h-4" /> Excel</button>
+                        <button onClick={() => handleOpenModal()} className="hidden md:flex whitespace-nowrap bg-primary text-white px-3 py-2 rounded-xl hover:bg-primary-700 transition-colors items-center gap-1 shadow-sm font-bold text-xs"><PlusIcon className="w-4 h-4" /> Thêm</button>
                     </div>
-                    <ColumnToggler columns={REVENUE_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
-                    <button onClick={() => setIsImportModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm"><UploadIcon /> Nhập Excel</button>
-                    <button onClick={() => handleOpenModal()} className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm font-bold text-sm"><PlusIcon /> Thêm Mới</button>
                 </div>
             </div>
 
-            <div className="overflow-x-auto border rounded-2xl shadow-sm max-h-[60vh] overflow-y-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto border rounded-2xl shadow-sm max-h-[60vh] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
@@ -421,6 +434,88 @@ const RevenueTable: React.FC = () => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                    <input
+                        type="checkbox"
+                        checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
+                        onChange={toggleSelectAll}
+                        className="rounded border-gray-300 text-primary focus:ring-primary w-5 h-5"
+                    />
+                    <span className="text-sm font-bold text-gray-600">Chọn tất cả</span>
+                </div>
+                {filteredData.length > 0 ? filteredData.map((entry) => {
+                    const total = entry.retailPrice * entry.quantity;
+                    const profit = (entry.retailPrice - entry.costPrice) * entry.quantity;
+                    const isConsignment = entry.consignor && entry.consignor.trim() !== '';
+                    const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
+                    const rowFinalProfit = profit + consignmentBonus;
+                    const isSelected = selectedIds.includes(entry.id);
+
+                    return (
+                        <div key={entry.id} className={`bg-slate-50 border rounded-xl p-3 shadow-sm ${getStatusStyles(entry.status)} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+                            <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => toggleSelectOne(entry.id)}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <div>
+                                        <p className="font-black text-gray-800 text-sm">{entry.customerName || 'Vãng lai'}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold">{entry.date.split('-').reverse().join('/')}</p>
+                                    </div>
+                                </div>
+                                <div className="flexgap-1">
+                                    <button onClick={() => handleOpenModal(entry)} className="p-1.5 text-primary-600 bg-white rounded-lg shadow-sm border border-gray-100"><EditIcon className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDelete(entry.id)} className="p-1.5 text-red-600 bg-white rounded-lg shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+
+                            <div className="mb-2">
+                                <p className="text-sm text-gray-700 font-medium line-clamp-2" title={entry.productName}>{entry.productName}</p>
+                                {isConsignment && <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold">KG: {entry.consignor}</span>}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 bg-white/50 p-2 rounded-lg mb-2">
+                                <div className="text-center">
+                                    <p className="text-[9px] text-gray-400 uppercase">Giá bán</p>
+                                    <p className="font-bold text-xs">{formatCurrency(entry.retailPrice)}</p>
+                                </div>
+                                <div className="text-center border-l border-gray-200">
+                                    <p className="text-[9px] text-gray-400 uppercase">SL</p>
+                                    <p className="font-bold text-xs">{entry.quantity}</p>
+                                </div>
+                                <div className="text-center border-l border-gray-200">
+                                    <p className="text-[9px] text-gray-400 uppercase">Tổng</p>
+                                    <p className="font-bold text-xs text-teal-700">{formatCurrency(total)}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2">
+                                <select
+                                    value={entry.status}
+                                    onChange={(e) => handleStatusChange(entry.id, e.target.value as RevenueStatus)}
+                                    className="flex-1 text-[10px] font-black uppercase py-1 px-2 rounded-lg border-gray-200 focus:ring-primary cursor-pointer bg-white h-8"
+                                >
+                                    <option value={RevenueStatus.HOLDING}>Dồn đơn</option>
+                                    <option value={RevenueStatus.SHIPPING}>Đang đi</option>
+                                    <option value={RevenueStatus.DELIVERED}>Đã giao</option>
+                                </select>
+                                <div className="text-right">
+                                    <p className="text-[9px] text-gray-400 uppercase">Lãi</p>
+                                    <p className={`font-black text-sm ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }) : (
+                    <div className="text-center py-10 text-gray-400 italic bg-gray-50 rounded-xl">Tháng {selectedMonth} chưa có dữ liệu.</div>
+                )}
             </div>
 
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
