@@ -261,89 +261,105 @@ const ConsignmentTable: React.FC = () => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-2xl font-bold text-gray-800">Quản lý Khách ký gửi</h2>
-                    <button onClick={handleClearAll} className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded">
-                        <ClearIcon className="w-3 h-3" /> Xóa sạch
-                    </button>
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg">
+            {/* Mobile-optimized Header/Toolbar */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
+                <div className="flex items-center justify-between w-full md:w-auto">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Khách ký gửi</h2>
+                    {/* Mobile Add Button */}
+                    <button onClick={() => handleOpenModal()} className="md:hidden bg-primary text-white p-2 rounded-xl hover:bg-primary-700 transition-colors shadow-sm"><PlusIcon className="w-5 h-5" /></button>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {selectedIds.length > 0 && (
-                        <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-sm flex items-center gap-2">
-                            <TrashIcon className="w-5 h-5" /> Xóa {selectedIds.length} mục
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:flex-1 md:justify-end items-stretch sm:items-center">
+                    <div className="w-full sm:w-auto sm:max-w-xs flex-1">
+                        <input
+                            type="text"
+                            placeholder="Tìm tên khách..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 justify-between sm:justify-start">
+                        <button onClick={handleClearAll} className="hidden lg:flex text-red-500 hover:text-red-700 text-[10px] items-center gap-1 font-black bg-red-50 px-2 py-1 rounded border border-red-100 uppercase whitespace-nowrap">
+                            <ClearIcon className="w-3 h-3" /> Xóa sạch
                         </button>
-                    )}
-                    <ColumnToggler columns={CONSIGNMENT_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors shadow-sm">
-                        <UploadIcon />
-                        <span className="font-medium">Nhập Excel</span>
-                    </button>
-                    <button onClick={() => handleOpenModal()} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors shadow-sm">
-                        <PlusIcon />
-                        <span className="font-medium">Thêm Ký Gửi</span>
-                    </button>
+
+                        {selectedIds.length > 0 && (
+                            <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-xs flex items-center gap-1 whitespace-nowrap">
+                                <TrashIcon className="w-4 h-4" /> ({selectedIds.length})
+                            </button>
+                        )}
+
+                        <div className="hidden md:block">
+                            <ColumnToggler columns={CONSIGNMENT_COLUMNS} visibleColumns={visibleColumns} onToggle={setVisibleColumns} />
+                        </div>
+
+                        <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-100 transition-colors shadow-sm font-bold text-xs whitespace-nowrap">
+                            <UploadIcon className="w-4 h-4" />
+                            <span>Excel</span>
+                        </button>
+                        <button onClick={() => handleOpenModal()} className="hidden md:flex items-center gap-1 bg-primary text-white px-3 py-2 rounded-xl hover:bg-primary-700 transition-colors shadow-sm font-bold text-xs whitespace-nowrap">
+                            <PlusIcon className="w-4 h-4" />
+                            <span>Thêm Mới</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="mb-6">
-                <input
-                    type="text"
-                    placeholder="Tìm theo tên khách ký gửi..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
-                />
-            </div>
-
-            <div className="space-y-10">
+            <div className="space-y-6 sm:space-y-10">
                 {paginatedEntries.length > 0 ? paginatedEntries.map(([customerName, customerItems]) => {
                     const summary = calculateSummary(customerItems);
+                    const isAllSelected = customerItems.every(i => selectedIds.includes(i.id)) && customerItems.length > 0;
+
                     return (
-                        <div key={customerName} className="border border-gray-200 rounded-2xl p-5 shadow-sm bg-white overflow-hidden">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
-                                <h3 className="text-xl font-black text-primary flex items-center gap-2">
-                                    <span className="bg-primary/10 p-2 rounded-lg"><PdfIcon className="w-5 h-5" /></span>
-                                    {customerName}
+                        <div key={customerName} className="border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm bg-white overflow-hidden">
+                            {/* Customer Header */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 bg-gray-50/50 -mx-4 -mt-4 p-4 sm:mx-0 sm:mt-0 sm:bg-transparent sm:p-0">
+                                <h3 className="text-lg sm:text-xl font-black text-primary flex items-center gap-2">
+                                    <span className="bg-primary/10 p-1.5 rounded-lg"><PdfIcon className="w-4 h-4 sm:w-5 sm:h-5" /></span>
+                                    <span className="truncate max-w-[200px] sm:max-w-none">{customerName}</span>
                                 </h3>
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                                     <button
                                         onClick={() => handleExportConsignmentPdf(customerName, customerItems)}
-                                        className="flex items-center gap-2 text-[11px] font-black uppercase bg-green-600 text-white px-3 py-2 rounded-xl hover:bg-green-700 transition-colors shadow-sm"
+                                        className="flex-1 sm:flex-none justify-center flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase bg-green-50 text-green-700 border border-green-200 px-2 sm:px-3 py-2 rounded-xl hover:bg-green-100 transition-colors shadow-sm"
                                     >
-                                        <PdfIcon className="w-4 h-4" />
-                                        <span>Xuất file</span>
+                                        <PdfIcon className="w-3.5 h-3.5" />
+                                        <span>PDF</span>
                                     </button>
                                     {summary.soldItems > 0 && (
                                         <button
                                             onClick={() => handleSettle(customerName, customerItems)}
-                                            className="flex items-center gap-2 text-[11px] font-black uppercase bg-purple-600 text-white px-3 py-2 rounded-xl hover:bg-purple-700 transition-colors shadow-sm"
+                                            className="flex-1 sm:flex-none justify-center flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase bg-purple-600 text-white px-2 sm:px-3 py-2 rounded-xl hover:bg-purple-700 transition-colors shadow-sm"
                                         >
-                                            <CheckCircleIcon className="w-4 h-4" />
+                                            <CheckCircleIcon className="w-3.5 h-3.5" />
                                             <span>Thanh toán</span>
                                         </button>
                                     )}
                                     <button
                                         onClick={() => handleDeleteCustomer(customerName)}
-                                        className="flex items-center gap-2 text-[11px] font-black uppercase bg-red-50 text-red-600 px-3 py-2 rounded-xl hover:bg-red-600 hover:text-white transition-colors border border-red-100"
+                                        className="flex-none flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase bg-red-50 text-red-600 px-3 py-2 rounded-xl hover:bg-red-600 hover:text-white transition-colors border border-red-100"
+                                        title="Xóa khách này"
                                     >
-                                        <TrashIcon className="w-4 h-4" />
-                                        <span>Xóa Khách</span>
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                        <span className="hidden sm:inline">Xóa Khách</span>
                                     </button>
                                 </div>
                             </div>
-                            <div className="overflow-x-auto border rounded-xl mb-4 shadow-inner">
+
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto border rounded-xl mb-4 shadow-inner">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-100">
                                         <tr>
                                             <th className="px-4 py-3 w-8 text-center">
-                                                <input // Select All for this specific customer group, actually global select for simplicity
+                                                <input
                                                     type="checkbox"
-                                                    checked={customerItems.every(i => selectedIds.includes(i.id)) && customerItems.length > 0}
+                                                    checked={isAllSelected}
                                                     onChange={() => {
-                                                        const allSelected = customerItems.every(i => selectedIds.includes(i.id));
-                                                        if (allSelected) {
+                                                        if (isAllSelected) {
                                                             setSelectedIds(prev => prev.filter(id => !customerItems.map(i => i.id).includes(id)));
                                                         } else {
                                                             const newIds = customerItems.map(i => i.id).filter(id => !selectedIds.includes(id));
@@ -391,13 +407,78 @@ const ConsignmentTable: React.FC = () => {
                                     </tbody>
                                 </table>
                             </div>
-                            <div className="bg-gray-50 p-4 rounded-xl flex flex-wrap justify-end gap-x-8 gap-y-3 text-xs border border-gray-100">
-                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Tổng sản phẩm:</span> <span className="font-black text-gray-900">{summary.totalItems}</span></div>
-                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã bán:</span> <span className="text-yellow-600 font-black">{summary.soldItems}</span></div>
-                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Mới cọc:</span> <span className="text-green-600 font-black">{summary.depositedItems}</span></div>
-                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã trả:</span> <span className="text-red-600 font-black">{summary.returnedItems}</span></div>
-                                <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Còn lại:</span> <span className="text-blue-600 font-black">{summary.inStockItems}</span></div>
-                                <div className="flex items-center gap-2 px-3 py-1 bg-purple-100 rounded-lg text-purple-700 font-black"><span className="uppercase text-[9px] mr-1">Tiền cần thanh toán:</span> {formatCurrency(summary.totalTransferAmount)}</div>
+
+                            {/* Mobile Card View */}
+                            <div className="md:hidden space-y-3 mb-4">
+                                <div className="flex items-center gap-2 mb-2 px-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAllSelected}
+                                        onChange={() => {
+                                            if (isAllSelected) {
+                                                setSelectedIds(prev => prev.filter(id => !customerItems.map(i => i.id).includes(id)));
+                                            } else {
+                                                const newIds = customerItems.map(i => i.id).filter(id => !selectedIds.includes(id));
+                                                setSelectedIds(prev => [...prev, ...newIds]);
+                                            }
+                                        }}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary w-5 h-5"
+                                    />
+                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Chọn tất cả ({customerItems.length})</span>
+                                </div>
+                                {customerItems.map(item => {
+                                    const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                    const isSelected = selectedIds.includes(item.id);
+                                    return (
+                                        <div key={item.id} className={`border rounded-xl p-3 shadow-sm ${getStatusRowClass(item.status)} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelectOne(item.id)}
+                                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-gray-800 text-sm truncate pr-2">{item.productName}</p>
+                                                        <div className="flex items-center gap-2">{getStatusBadge(item.status)} <span className="text-[10px] text-gray-400">SL: {item.quantity}</span></div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-1 shrink-0">
+                                                    <button onClick={() => handleOpenModal(item)} className="p-1.5 bg-white rounded-lg text-primary-600 shadow-sm border border-gray-100"><EditIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-white rounded-lg text-red-600 shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 bg-white/60 p-2 rounded-lg text-xs">
+                                                <div>
+                                                    <p className="text-[10px] text-gray-400 uppercase">Giá bán</p>
+                                                    <p className="font-bold text-gray-900">{formatCurrency(item.consignmentPrice)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-gray-400 uppercase">Nhận về ({100 - item.consignmentFee}%)</p>
+                                                    <p className="font-black text-blue-700">{formatCurrency(amountAfterFee)}</p>
+                                                </div>
+                                            </div>
+                                            {item.note && <p className="mt-2 text-xs text-gray-500 italic bg-gray-50 p-1.5 rounded border border-gray-100">"{item.note}"</p>}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+
+                            {/* Footer Stats */}
+                            <div className="bg-gray-50 p-3 sm:p-4 rounded-xl flex flex-col sm:flex-row flex-wrap justify-end gap-2 sm:gap-x-8 sm:gap-y-3 text-xs border border-gray-100">
+                                <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-4">
+                                    <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Tổng SP:</span> <span className="font-black text-gray-900">{summary.totalItems}</span></div>
+                                    <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã bán:</span> <span className="text-yellow-600 font-black">{summary.soldItems}</span></div>
+                                    <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Mới cọc:</span> <span className="text-green-600 font-black">{summary.depositedItems}</span></div>
+                                    <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Đã trả:</span> <span className="text-red-600 font-black">{summary.returnedItems}</span></div>
+                                </div>
+                                <div className="w-full h-px bg-gray-200 sm:hidden"></div>
+                                <div className="flex items-center justify-between sm:justify-start gap-2">
+                                    <div className="flex items-center gap-2"><span className="text-gray-400 font-bold uppercase text-[9px]">Kho:</span> <span className="text-blue-600 font-black">{summary.inStockItems}</span></div>
+                                    <div className="flex items-center gap-2 px-3 py-1 bg-purple-100 rounded-lg text-purple-700 font-black"><span className="uppercase text-[9px] mr-1">Thanh toán:</span> {formatCurrency(summary.totalTransferAmount)}</div>
+                                </div>
                             </div>
                         </div>)
                 }) : (
@@ -416,17 +497,17 @@ const ConsignmentTable: React.FC = () => {
                         disabled={currentPage === 1}
                         className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        Trang Trước
+                        Trước
                     </button>
                     <span className="text-sm font-bold text-gray-500">
-                        Trang {currentPage} / {totalPages}
+                        Page {currentPage} / {totalPages}
                     </span>
                     <button
                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
                         className="px-4 py-2 text-sm font-bold text-gray-600 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        Trang Sau
+                        Sau
                     </button>
                 </div>
             )}
