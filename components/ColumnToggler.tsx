@@ -43,9 +43,9 @@ const ColumnToggler: React.FC<ColumnTogglerProps> = ({ columns, visibleColumns, 
       </div>
 
       {isOpen && (
-        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+        <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20" onClick={(e) => e.stopPropagation()}>
           <div className="py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-             <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase">Hiển thị các cột</div>
+            <div className="px-4 py-2 text-xs font-bold text-gray-400 uppercase">Hiển thị các cột</div>
             {columns.map(col => (
               <label key={col.key} className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                 <input

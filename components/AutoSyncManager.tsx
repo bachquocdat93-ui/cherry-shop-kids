@@ -3,8 +3,51 @@ import { pushToCloud } from '../utils/supabaseService';
 import { SyncIcon, CheckCircleIcon } from './Icons';
 
 const AutoSyncManager: React.FC = () => {
-    const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'pulling' | 'pulled'>('idle');
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    // Pull from cloud on mount
+    useEffect(() => {
+        const syncFromCloud = async () => {
+            const config = localStorage.getItem('supabase_config');
+            if (!config) return;
+
+            setStatus('pulling');
+            try {
+                // Dynamic import to avoid circular dependencies if any, though here it's fine
+                const { pullFromCloud } = await import('../utils/supabaseService');
+                const data = await pullFromCloud();
+
+                if (data) {
+                    if (data.revenue) {
+                        localStorage.setItem('revenueData', JSON.stringify(data.revenue));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'revenueData' } }));
+                    }
+                    if (data.invoices) {
+                        localStorage.setItem('invoicesData', JSON.stringify(data.invoices));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'invoicesData' } }));
+                    }
+                    if (data.consignment) {
+                        localStorage.setItem('consignmentData', JSON.stringify(data.consignment));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'consignmentData' } }));
+                    }
+                    if (data.inventory) {
+                        localStorage.setItem('shopInventoryData', JSON.stringify(data.inventory));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'shopInventoryData' } }));
+                    }
+                    setStatus('pulled');
+                    setTimeout(() => setStatus('idle'), 3000);
+                } else {
+                    setStatus('idle');
+                }
+            } catch (error) {
+                console.error("Auto pull failed:", error);
+                setStatus('error');
+            }
+        };
+
+        syncFromCloud();
+    }, []);
 
     useEffect(() => {
         let timeout: NodeJS.Timeout;
@@ -59,8 +102,8 @@ const AutoSyncManager: React.FC = () => {
         <div className="fixed bottom-4 right-4 z-50 pointer-events-none">
             <div className={`
                 flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all duration-300 transform
-                ${status === 'saving' ? 'bg-blue-600 text-white translate-y-0 opacity-100' : ''}
-                ${status === 'saved' ? 'bg-green-600 text-white translate-y-0 opacity-100' : ''}
+                ${status === 'saving' || status === 'pulling' ? 'bg-blue-600 text-white translate-y-0 opacity-100' : ''}
+                ${status === 'saved' || status === 'pulled' ? 'bg-green-600 text-white translate-y-0 opacity-100' : ''}
                 ${status === 'error' ? 'bg-red-600 text-white translate-y-0 opacity-100' : ''}
                 ${status === 'idle' ? 'translate-y-10 opacity-0' : ''}
             `}>
@@ -76,10 +119,22 @@ const AutoSyncManager: React.FC = () => {
                         <span className="text-xs font-bold">Đã lưu tự động</span>
                     </>
                 )}
+                {status === 'pulling' && (
+                    <>
+                        <SyncIcon className="animate-spin w-4 h-4" />
+                        <span className="text-xs font-bold">Đang đồng bộ từ Cloud...</span>
+                    </>
+                )}
+                {status === 'pulled' && (
+                    <>
+                        <CheckCircleIcon className="w-4 h-4" />
+                        <span className="text-xs font-bold">Đã đồng bộ từ Cloud</span>
+                    </>
+                )}
                 {status === 'error' && (
                     <>
                         <SyncIcon className="w-4 h-4" />
-                        <span className="text-xs font-bold">Lỗi lưu Cloud</span>
+                        <span className="text-xs font-bold">Lỗi kết nối Cloud</span>
                     </>
                 )}
             </div>

@@ -35,8 +35,19 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
       }
     };
 
+    const handleLocalDataChange = (e: CustomEvent) => {
+      if (e.detail.key === key) {
+        handleStorageChange();
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('local-data-change', handleLocalDataChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('local-data-change', handleLocalDataChange as EventListener);
+    };
   }, [key, initialValue]);
 
   return [storedValue, setValue];
