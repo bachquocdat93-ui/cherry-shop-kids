@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon, RefreshIcon } from './Icons';
 import RevenueModal from './RevenueModal';
 import ImportModal from './ImportModal';
 import { transformToRevenueData } from '../utils/importer';
@@ -265,15 +265,18 @@ const RevenueTable: React.FC = () => {
     }, [revenueData, selectedMonth, searchTerm]);
 
     const stats = useMemo(() => {
-        const totalRevenue = filteredData.reduce((sum, e) => sum + (e.retailPrice * e.quantity), 0);
-        const totalFinalProfitAll = filteredData.reduce((sum, e) => {
+        // Filter out returned items
+        const activeData = filteredData.filter(e => e.status !== RevenueStatus.RETURNED);
+
+        const totalRevenue = activeData.reduce((sum, e) => sum + (e.retailPrice * e.quantity), 0);
+        const totalFinalProfitAll = activeData.reduce((sum, e) => {
             const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
             const isConsignment = e.consignor && e.consignor.trim() !== '';
             const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
             return sum + profitMargin + consignmentBonus;
         }, 0);
 
-        const totalDeliveredProfit = filteredData.reduce((sum, e) => {
+        const totalDeliveredProfit = activeData.reduce((sum, e) => {
             if (e.status === RevenueStatus.DELIVERED) {
                 const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
                 const consignmentBonus = (e.consignor && e.consignor.trim() !== '') ? (e.costPrice * 0.2 * e.quantity) : 0;
@@ -282,7 +285,7 @@ const RevenueTable: React.FC = () => {
             return sum;
         }, 0);
 
-        return { totalRevenue, totalFinalProfitAll, totalDeliveredProfit, count: filteredData.length };
+        return { totalRevenue, totalFinalProfitAll, totalDeliveredProfit, count: activeData.length };
     }, [filteredData]);
 
     const availableMonths = useMemo(() => {
@@ -296,7 +299,40 @@ const RevenueTable: React.FC = () => {
         switch (status) {
             case RevenueStatus.DELIVERED: return 'bg-yellow-50 text-yellow-800';
             case RevenueStatus.SHIPPING: return 'bg-green-50 text-green-800';
+            case RevenueStatus.RETURNED: return 'bg-gray-50 text-gray-400 line-through opacity-75';
             default: return 'bg-white text-gray-800';
+        }
+    };
+
+    const handleReturn = (entry: RevenueEntry) => {
+        if (window.confirm(`Khách trả lại sản phẩm "${entry.productName}"?\n\nNhấn OK để: \n1. Hoàn lại ${entry.quantity} sản phẩm vào kho.\n2. Đánh dấu đơn này là "Đã hoàn".\n3. Trừ doanh thu báo cáo.`)) {
+            try {
+                // Return to stock Logic
+                if (entry.shopItemId) {
+                    const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+                    if (shopDataRaw) {
+                        let shopData: ShopItem[] = JSON.parse(shopDataRaw);
+                        const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
+                        if (shopIdx !== -1) {
+                            shopData[shopIdx].quantity += entry.quantity;
+                            window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    }
+                }
+
+                // Update Invoice (Remove item)
+                if (entry.customerName) {
+                    syncWithInvoices(entry, 'remove');
+                }
+
+                // Update Revenue Status
+                setRevenueData(prev => prev.map(e => e.id === entry.id ? { ...e, status: RevenueStatus.RETURNED } : e));
+
+            } catch (e) {
+                console.error("Lỗi hoàn hàng:", e);
+                alert("Có lỗi xảy ra khi hoàn hàng.");
+            }
         }
     };
 
@@ -390,6 +426,7 @@ const RevenueTable: React.FC = () => {
                             const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
                             const rowFinalProfit = profit + consignmentBonus;
                             const isSelected = selectedIds.includes(entry.id);
+                            const isReturned = entry.status === RevenueStatus.RETURNED;
 
                             return (
                                 <tr key={entry.id} className={`${getStatusStyles(entry.status)} hover:opacity-95 transition-opacity ${isSelected ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
@@ -415,14 +452,21 @@ const RevenueTable: React.FC = () => {
                                             value={entry.status}
                                             onChange={(e) => handleStatusChange(entry.id, e.target.value as RevenueStatus)}
                                             className="text-[9px] font-black uppercase py-0.5 px-2 rounded-full border-gray-200 focus:ring-primary focus:border-primary cursor-pointer shadow-sm bg-white"
+                                            disabled={isReturned}
                                         >
                                             <option value={RevenueStatus.HOLDING}>Dồn đơn</option>
                                             <option value={RevenueStatus.SHIPPING}>Đang đi</option>
                                             <option value={RevenueStatus.DELIVERED}>Đã giao</option>
+                                            <option value={RevenueStatus.RETURNED}>Đã hoàn</option>
                                         </select>
                                     </td>}
                                     {visibleColumns.includes('actions') && <td className="px-2 py-3 whitespace-nowrap text-center border-b border-gray-50">
                                         <div className="flex items-center justify-center space-x-1">
+                                            {!isReturned && (
+                                                <button onClick={() => handleReturn(entry)} className="p-1 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Hoàn hàng/Trả hàng">
+                                                    <RefreshIcon className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                             <button onClick={() => handleOpenModal(entry)} className="p-1 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><EditIcon className="w-3.5 h-3.5" /></button>
                                             <button onClick={() => handleDelete(entry.id)} className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
                                         </div>

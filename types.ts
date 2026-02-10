@@ -16,6 +16,7 @@ export enum RevenueStatus {
   DELIVERED = 'Đã giao hàng',
   SHIPPING = 'Đang đi đơn',
   HOLDING = 'Dồn đơn',
+  RETURNED = 'Đã hoàn',
 }
 
 export interface InvoiceItem {
