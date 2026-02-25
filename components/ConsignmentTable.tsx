@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ConsignmentItem, ConsignmentStatus, RevenueEntry, RevenueStatus } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon, SearchIcon } from './Icons';
 import ConsignmentModal from './ConsignmentModal';
 import ImportModal from './ImportModal';
 import { transformToConsignmentData } from '../utils/importer';
@@ -81,6 +81,45 @@ const ConsignmentTable: React.FC = () => {
     }, [currentPage, totalPages]);
 
 
+    const toggleSelectOne = (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (selectedIds.includes(id)) {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        } else {
+            setSelectedIds(prev => [...prev, id]);
+        }
+    };
+
+    const toggleSelectGroup = (customerItems: ConsignmentItem[]) => {
+        const itemIds = customerItems.map(i => i.id);
+        const allSelected = itemIds.every(id => selectedIds.includes(id));
+
+        if (allSelected) {
+            setSelectedIds(prev => prev.filter(id => !itemIds.includes(id)));
+        } else {
+            setSelectedIds(prev => {
+                const newIds = [...prev];
+                itemIds.forEach(id => {
+                    if (!newIds.includes(id)) newIds.push(id);
+                });
+                return newIds;
+            });
+        }
+    };
+
+    const handleBulkStatusChange = (newStatus: ConsignmentStatus) => {
+        if (selectedIds.length === 0) return;
+
+        const confirmMsg = `Bạn có chắc muốn đổi trạng thái ${selectedIds.length} mục ký gửi thành "${newStatus}"?`;
+
+        if (window.confirm(confirmMsg)) {
+            setItems(prev => prev.map(item =>
+                selectedIds.includes(item.id) ? { ...item, status: newStatus } : item
+            ));
+            setSelectedIds([]);
+        }
+    };
+
     const handleOpenModal = (item: ConsignmentItem | null = null) => {
         setEditingItem(item);
         setIsModalOpen(true);
@@ -125,14 +164,6 @@ const ConsignmentTable: React.FC = () => {
             setSelectedIds([]);
         } else {
             setSelectedIds(allVisibleItems.map(i => i.id));
-        }
-    };
-
-    const toggleSelectOne = (id: string) => {
-        if (selectedIds.includes(id)) {
-            setSelectedIds(prev => prev.filter(i => i !== id));
-        } else {
-            setSelectedIds(prev => [...prev, id]);
         }
     };
 
@@ -271,20 +302,44 @@ const ConsignmentTable: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:flex-1 md:justify-end items-stretch sm:items-center">
-                    <div className="w-full sm:w-auto sm:max-w-xs flex-1">
-                        <input
-                            type="text"
-                            placeholder="Tìm tên khách..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm"
-                        />
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 shadow-sm shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={items.length > 0 && selectedIds.length === items.length}
+                                onChange={toggleSelectAll}
+                                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter whitespace-nowrap">Chọn hết</span>
+                        </div>
+                        <div className="relative flex-1 sm:max-w-xs">
+                            <input
+                                type="text"
+                                placeholder="Tìm tên khách..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg border-gray-200 focus:ring-primary focus:border-primary text-sm shadow-sm pl-8"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <SearchIcon className="h-4 w-4 text-gray-400" />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 justify-between sm:justify-start">
                         <button onClick={handleClearAll} className="hidden lg:flex text-red-500 hover:text-red-700 text-[10px] items-center gap-1 font-black bg-red-50 px-2 py-1 rounded border border-red-100 uppercase whitespace-nowrap">
                             <ClearIcon className="w-3 h-3" /> Xóa sạch
                         </button>
+
+                        {selectedIds.length > 0 && (
+                            <div className="flex items-center gap-1.5 bg-blue-50 p-1 rounded-xl border border-blue-200">
+                                <span className="text-[9px] font-black text-blue-600 px-1 uppercase">Đổi {selectedIds.length} mục:</span>
+                                <button onClick={() => handleBulkStatusChange(ConsignmentStatus.IN_STOCK)} className="text-[9px] font-bold bg-white text-gray-700 px-1.5 py-1 rounded border border-gray-200 hover:bg-gray-50 uppercase shadow-sm">Còn hàng</button>
+                                <button onClick={() => handleBulkStatusChange(ConsignmentStatus.DEPOSITED)} className="text-[9px] font-bold bg-white text-green-700 px-1.5 py-1 rounded border border-green-200 hover:bg-green-50 uppercase shadow-sm">Mới cọc</button>
+                                <button onClick={() => handleBulkStatusChange(ConsignmentStatus.SOLD)} className="text-[9px] font-bold bg-white text-yellow-700 px-1.5 py-1 rounded border border-yellow-200 hover:bg-yellow-50 uppercase shadow-sm">Đã bán</button>
+                                <button onClick={() => handleBulkStatusChange(ConsignmentStatus.RETURNED)} className="text-[9px] font-bold bg-white text-red-700 px-1.5 py-1 rounded border border-red-200 hover:bg-red-50 uppercase shadow-sm">Trả hàng</button>
+                            </div>
+                        )}
 
                         {selectedIds.length > 0 && (
                             <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-xs flex items-center gap-1 whitespace-nowrap">

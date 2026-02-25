@@ -258,6 +258,57 @@ const RevenueTable: React.FC = () => {
         }
     };
 
+    const handleBulkStatusChange = (newStatus: RevenueStatus) => {
+        if (selectedIds.length === 0) return;
+
+        const confirmMsg = newStatus === RevenueStatus.RETURNED
+            ? `Bạn có chắc muốn đổi trạng thái ${selectedIds.length} mục thành "Đã hoàn"?\nKho hàng sẽ được hoàn lại số lượng.`
+            : `Bạn có chắc muốn đổi trạng thái ${selectedIds.length} mục thành "${newStatus}"?`;
+
+        if (window.confirm(confirmMsg)) {
+            const updatedData = [...revenueData];
+            const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+            let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+            let shopChanged = false;
+
+            selectedIds.forEach(id => {
+                const index = updatedData.findIndex(e => e.id === id);
+                if (index !== -1) {
+                    const entry = updatedData[index];
+
+                    // Handle Inventory Reversal if status becomes RETURNED
+                    // Only if it wasn't already RETURNED (though usually not selectable then)
+                    if (newStatus === RevenueStatus.RETURNED && entry.status !== RevenueStatus.RETURNED) {
+                        if (entry.shopItemId) {
+                            const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
+                            if (shopIdx !== -1) {
+                                shopData[shopIdx].quantity += entry.quantity;
+                                shopChanged = true;
+                            }
+                        }
+                    }
+
+                    // Update entry
+                    updatedData[index] = { ...entry, status: newStatus };
+
+                    // Sync with Invoices
+                    if (entry.customerName) {
+                        syncWithInvoices(updatedData[index], 'update');
+                    }
+                }
+            });
+
+            if (shopChanged) {
+                window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                window.dispatchEvent(new Event('storage'));
+            }
+
+            setRevenueData(updatedData);
+            setSelectedIds([]);
+            alert(`Đã cập nhật trạng thái cho ${selectedIds.length} mục.`);
+        }
+    };
+
     const handleClearAll = () => {
         if (window.confirm(`BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ DOANH THU THÁNG ${selectedMonth}?\nHành động này không thể khôi phục!`)) {
             setRevenueData(prev => prev.filter(e => !e.date.startsWith(selectedMonth)));
@@ -424,8 +475,19 @@ const RevenueTable: React.FC = () => {
                         </div>
 
                         {selectedIds.length > 0 && (
+                            <div className="flex items-center gap-2 bg-blue-50 p-1.5 rounded-xl border border-blue-200">
+                                <span className="text-[10px] font-black text-blue-600 px-2 uppercase">Đổi {selectedIds.length} mục:</span>
+                                <button onClick={() => handleBulkStatusChange(RevenueStatus.HOLDING)} className="text-[9px] font-bold bg-white text-gray-700 px-2 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 uppercase shadow-sm">Dồn đơn</button>
+                                <button onClick={() => handleBulkStatusChange(RevenueStatus.SHIPPING)} className="text-[9px] font-bold bg-white text-green-700 px-2 py-1 rounded-lg border border-green-200 hover:bg-green-50 uppercase shadow-sm">Đang đi</button>
+                                <button onClick={() => handleBulkStatusChange(RevenueStatus.DELIVERED)} className="text-[9px] font-bold bg-white text-yellow-700 px-2 py-1 rounded-lg border border-yellow-200 hover:bg-yellow-50 uppercase shadow-sm">Đã giao</button>
+                                <button onClick={() => handleBulkStatusChange(RevenueStatus.RETURNED)} className="text-[9px] font-bold bg-white text-red-700 px-2 py-1 rounded-lg border border-red-200 hover:bg-red-50 uppercase shadow-sm">Đã hoàn</button>
+                                <button onClick={() => setSelectedIds([])} className="ml-2 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase underline underline-offset-2">Hủy</button>
+                            </div>
+                        )}
+
+                        {selectedIds.length > 0 && (
                             <button onClick={handleBulkDelete} className="whitespace-nowrap bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs">
-                                <TrashIcon className="w-4 h-4" /> ({selectedIds.length})
+                                <TrashIcon className="w-4 h-4" /> (Xóa {selectedIds.length})
                             </button>
                         )}
 

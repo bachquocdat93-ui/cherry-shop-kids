@@ -142,6 +142,71 @@ const InvoicesTable = () => {
         }
     };
 
+    const handleBulkStatusChange = (newStatus: RevenueStatus) => {
+        if (selectedIds.length === 0) return;
+
+        const confirmMsg = `Bạn có chắc muốn đổi trạng thái cho ${selectedIds.length} hóa đơn đã chọn sang "${newStatus}"?`;
+
+        if (window.confirm(confirmMsg)) {
+            const updatedInvoices = [...invoices];
+            const revenueDataRaw = window.localStorage.getItem('revenueData');
+            let revenueEntries: RevenueEntry[] = revenueDataRaw ? JSON.parse(revenueDataRaw) : [];
+            let revenueChanged = false;
+
+            const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+            let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+            let shopChanged = false;
+
+            selectedIds.forEach(id => {
+                const invIdx = updatedInvoices.findIndex(inv => inv.id === id);
+                if (invIdx !== -1) {
+                    const invoice = updatedInvoices[invIdx];
+
+                    // Update all items in this invoice
+                    const updatedItems = invoice.items.map(item => {
+                        // Handle Inventory Reversal if status becomes RETURNED
+                        if (newStatus === RevenueStatus.RETURNED && item.status !== RevenueStatus.RETURNED) {
+                            if (item.shopItemId) {
+                                const shopIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                                if (shopIdx !== -1) {
+                                    shopData[shopIdx].quantity += item.quantity;
+                                    shopChanged = true;
+                                }
+                            }
+                        }
+
+                        // Sync back to Revenue
+                        if (item.revenueEntryId) {
+                            const revIdx = revenueEntries.findIndex(re => re.id === item.revenueEntryId);
+                            if (revIdx !== -1) {
+                                revenueEntries[revIdx].status = newStatus;
+                                revenueChanged = true;
+                            }
+                        }
+
+                        return { ...item, status: newStatus };
+                    });
+
+                    updatedInvoices[invIdx] = { ...invoice, items: updatedItems };
+                }
+            });
+
+            if (revenueChanged) {
+                window.localStorage.setItem('revenueData', JSON.stringify(revenueEntries));
+                window.dispatchEvent(new Event('storage'));
+            }
+
+            if (shopChanged) {
+                window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                window.dispatchEvent(new Event('storage'));
+            }
+
+            setInvoices(updatedInvoices);
+            setSelectedIds([]);
+            alert(`Đã cập nhật trạng thái cho ${selectedIds.length} hóa đơn.`);
+        }
+    };
+
     const handleClearAll = () => {
         setInvoices([]);
     };
@@ -225,6 +290,16 @@ const InvoicesTable = () => {
                     </button>
                 </div>
                 <div className="flex items-center gap-2">
+                    {selectedIds.length > 0 && (
+                        <div className="flex items-center gap-2 bg-blue-50 p-1 rounded-lg border border-blue-200">
+                            <span className="text-[10px] font-black text-blue-600 px-2 uppercase line-clamp-1">Đổi {selectedIds.length} HĐ:</span>
+                            <button onClick={() => handleBulkStatusChange(RevenueStatus.HOLDING)} className="text-[9px] font-bold bg-white text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 uppercase shadow-sm whitespace-nowrap">Dồn đơn</button>
+                            <button onClick={() => handleBulkStatusChange(RevenueStatus.SHIPPING)} className="text-[9px] font-bold bg-white text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-50 uppercase shadow-sm whitespace-nowrap">Đang đi</button>
+                            <button onClick={() => handleBulkStatusChange(RevenueStatus.DELIVERED)} className="text-[9px] font-bold bg-white text-yellow-700 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-50 uppercase shadow-sm whitespace-nowrap">Hoàn thành</button>
+                            <button onClick={() => handleBulkStatusChange(RevenueStatus.RETURNED)} className="text-[9px] font-bold bg-white text-red-700 px-2 py-1 rounded border border-red-200 hover:bg-red-50 uppercase shadow-sm whitespace-nowrap">Hoàn/Trả</button>
+                            <button onClick={() => setSelectedIds([])} className="ml-1 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase underline">Hủy</button>
+                        </div>
+                    )}
                     {selectedIds.length > 0 && (
                         <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-sm flex items-center gap-2">
                             <TrashIcon className="w-5 h-5" /> Xóa ({selectedIds.length})
