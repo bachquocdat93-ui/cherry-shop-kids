@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Invoice, ConsignmentItem, ConsignmentStatus } from '../types';
+import { Invoice, ConsignmentItem, ConsignmentStatus, RevenueEntry, RevenueStatus } from '../types';
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -306,4 +306,147 @@ export const generateConsignmentPDF = async (customerName: string, items: Consig
     doc.text(`${formatCurrency(totalTransfer)}`, 180, finalY + 64, { align: 'right' }); // Shifted down
 
     doc.save(`KyGui_${customerName.replace(/\s+/g, '_')}.pdf`);
+};
+export const generateRevenuePDF = async (month: string, entries: RevenueEntry[]) => {
+    const doc = new jsPDF();
+    await loadFont(doc);
+
+    // Calculates
+    const activeEntries = entries.filter(e => e.status !== RevenueStatus.RETURNED);
+    const totalRevenue = activeEntries.reduce((sum, e) => sum + (e.retailPrice * e.quantity), 0);
+    const totalProfit = activeEntries.reduce((sum, e) => {
+        const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
+        const isConsignment = e.consignor && e.consignor.trim() !== '';
+        const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
+        return sum + profitMargin + consignmentBonus;
+    }, 0);
+    const deliveredProfit = activeEntries.reduce((sum, e) => {
+        if (e.status === RevenueStatus.DELIVERED) {
+            const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
+            const isConsignment = e.consignor && e.consignor.trim() !== '';
+            const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
+            return sum + profitMargin + consignmentBonus;
+        }
+        return sum;
+    }, 0);
+
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(236, 72, 153); // Pink brand color
+    doc.setFont('Roboto', 'bold');
+    doc.text('CHERRY SHOP KIDS', 105, 20, { align: 'center' });
+
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('Roboto', 'normal');
+    doc.text(`BÁO CÁO DOANH THU THÁNG ${month.slice(5)}/${month.slice(0, 4)}`, 105, 30, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text(`Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}`, 105, 38, { align: 'center' });
+
+    // Table
+    const tableColumn = ["Ngày", "Khách hàng", "Sản Phẩm", "Đơn giá", "SL", "Thành tiền", "Lãi", "Trạng thái"];
+    const tableRows = entries.map(e => {
+        const total = e.retailPrice * e.quantity;
+        const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
+        const isConsignment = e.consignor && e.consignor.trim() !== '';
+        const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
+        const rowProfit = profitMargin + consignmentBonus;
+
+        return [
+            e.date.split('-').reverse().join('/'),
+            e.customerName || 'Vãng lai',
+            e.productName,
+            formatCurrency(e.retailPrice),
+            e.quantity,
+            formatCurrency(total),
+            formatCurrency(rowProfit),
+            e.status
+        ];
+    });
+
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 45,
+        theme: 'plain',
+        styles: {
+            font: 'Roboto',
+            fontSize: 8,
+            cellPadding: 3,
+            valign: 'middle',
+            lineWidth: 0.1,
+            lineColor: [236, 72, 153]
+        },
+        headStyles: {
+            fillColor: [236, 72, 153],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            halign: 'center'
+        },
+        columnStyles: {
+            0: { halign: 'center' }, // Ngày
+            1: { halign: 'left', cellWidth: 25 },  // Khách
+            2: { halign: 'left', cellWidth: 35 },  // Sản phẩm
+            3: { halign: 'right' }, // Giá
+            4: { halign: 'center' }, // SL
+            5: { halign: 'right' }, // Tổng
+            6: { halign: 'right' }, // Lãi
+            7: { halign: 'center' }  // Status
+        },
+        didParseCell: (data) => {
+            if (data.section === 'body') {
+                const entry = entries[data.row.index];
+                if (entry.status === RevenueStatus.RETURNED) {
+                    data.cell.styles.textColor = [156, 163, 175]; // Gray-400
+                    data.cell.styles.fillColor = [249, 250, 251]; // Gray-50
+                } else if (entry.status === RevenueStatus.DELIVERED) {
+                    // Highlight Delivered Profit column
+                    if (data.column.index === 6) {
+                        data.cell.styles.textColor = [234, 88, 12]; // Orange-600
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            }
+        }
+    });
+
+    let finalY = (doc as any).lastAutoTable.finalY + 10;
+    const pageHeight = doc.internal.pageSize.height || 297;
+
+    if (finalY + 50 > pageHeight) {
+        doc.addPage();
+        finalY = 20;
+    }
+
+    // Summary Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(20, finalY, 170, 40, 'FD');
+
+    doc.setFontSize(11);
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('Roboto', 'bold');
+    doc.text('TỔNG KẾT THÁNG', 30, finalY + 10);
+
+    doc.setFontSize(10);
+    doc.setFont('Roboto', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Tổng doanh thu:', 30, finalY + 20);
+    doc.setTextColor(15, 23, 42);
+    doc.text(formatCurrency(totalRevenue), 180, finalY + 20, { align: 'right' });
+
+    doc.setTextColor(71, 85, 105);
+    doc.text('Lãi dự kiến (full):', 30, finalY + 27);
+    doc.setTextColor(234, 88, 12);
+    doc.text(formatCurrency(totalProfit), 180, finalY + 27, { align: 'right' });
+
+    doc.setTextColor(71, 85, 105);
+    doc.text('Lãi thực tế (đã giao):', 30, finalY + 34);
+    doc.setFont('Roboto', 'bold');
+    doc.setTextColor(22, 163, 74); // Green-600
+    doc.text(formatCurrency(deliveredProfit), 180, finalY + 34, { align: 'right' });
+
+    doc.save(`DoanhThu_${month.replace('-', '_')}.pdf`);
 };

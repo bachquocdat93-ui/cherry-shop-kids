@@ -26,6 +26,7 @@ export interface InvoiceItem {
   quantity: number;
   status: RevenueStatus;
   shopItemId?: string; // Link to Shop Inventory
+  revenueEntryId?: string; // Link to Revenue Entry
 }
 
 export interface Invoice {

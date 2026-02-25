@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon, RefreshIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon, RefreshIcon, PdfIcon } from './Icons';
 import RevenueModal from './RevenueModal';
 import ImportModal from './ImportModal';
 import { transformToRevenueData } from '../utils/importer';
 import { generateRevenueTemplate } from '../utils/templateGenerator';
+import { generateRevenuePDF } from '../utils/pdfGenerator';
 import { generateUniqueId } from '../utils/helpers';
 import ColumnToggler from './ColumnToggler';
 
@@ -35,15 +36,13 @@ const RevenueTable: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Logic to sync with invoices
     const syncWithInvoices = (entry: RevenueEntry, action: 'add' | 'update' | 'remove') => {
         try {
             const rawInvoices = window.localStorage.getItem('invoicesData');
             let invoices: Invoice[] = rawInvoices ? JSON.parse(rawInvoices) : [];
             let changed = false;
 
-            const customerKey = entry.customerName.trim().toLowerCase();
-            const productKey = entry.productName.trim().toLowerCase();
+            const customerKey = (entry.customerName || 'Khách lẻ').trim().toLowerCase();
 
             if (action === 'add') {
                 const existingInvoiceIndex = invoices.findIndex(inv =>
@@ -56,7 +55,8 @@ const RevenueTable: React.FC = () => {
                     sellingPrice: entry.retailPrice,
                     quantity: entry.quantity,
                     status: entry.status,
-                    shopItemId: entry.shopItemId, // Link to shop inventory
+                    shopItemId: entry.shopItemId,
+                    revenueEntryId: entry.id, // Shared ID link
                 };
 
                 if (existingInvoiceIndex !== -1) {
@@ -64,36 +64,68 @@ const RevenueTable: React.FC = () => {
                 } else {
                     invoices.push({
                         id: generateUniqueId(),
-                        customerName: entry.customerName,
+                        customerName: entry.customerName || 'Khách lẻ',
                         items: [newItem],
                         deposit: 0,
                     });
                 }
                 changed = true;
-            } else if (action === 'update') {
+            } else if (action === 'update' || action === 'remove') {
+                // First, find and remove the item from wherever it is (based on revenueEntryId or legacy fallback)
+                let itemToMove: InvoiceItem | null = null;
+
                 invoices = invoices.map(invoice => {
-                    if (invoice.customerName.trim().toLowerCase() === customerKey) {
-                        invoice.items = invoice.items.map(item => {
-                            if (item.productName.trim().toLowerCase() === productKey) {
-                                changed = true;
-                                return { ...item, status: entry.status, sellingPrice: entry.retailPrice, quantity: entry.quantity };
-                            }
-                            return item;
+                    const originalLen = invoice.items.length;
+                    const remainingItems = invoice.items.filter(item => {
+                        const isMatch = item.revenueEntryId === entry.id ||
+                            (item.productName.trim().toLowerCase() === entry.productName.trim().toLowerCase() &&
+                                invoice.customerName.trim().toLowerCase() === customerKey);
+
+                        if (isMatch && action === 'update' && !itemToMove) {
+                            itemToMove = {
+                                ...item,
+                                status: entry.status,
+                                sellingPrice: entry.retailPrice,
+                                quantity: entry.quantity,
+                                productName: entry.productName,
+                                revenueEntryId: entry.id // Ensure ID is linked
+                            };
+                        }
+                        return !isMatch;
+                    });
+
+                    if (remainingItems.length !== originalLen) changed = true;
+                    return { ...invoice, items: remainingItems };
+                }).filter(inv => inv.items.length > 0);
+
+                // If it was an update, add it back to the CORRECT target invoice (handles customer name changes)
+                if (action === 'update') {
+                    const targetInvoiceIdx = invoices.findIndex(inv =>
+                        inv.customerName.trim().toLowerCase() === customerKey
+                    );
+
+                    const itemToInsert = itemToMove || {
+                        id: generateUniqueId(),
+                        productName: entry.productName,
+                        sellingPrice: entry.retailPrice,
+                        quantity: entry.quantity,
+                        status: entry.status,
+                        shopItemId: entry.shopItemId,
+                        revenueEntryId: entry.id,
+                    };
+
+                    if (targetInvoiceIdx !== -1) {
+                        invoices[targetInvoiceIdx].items.push(itemToInsert);
+                    } else {
+                        invoices.push({
+                            id: generateUniqueId(),
+                            customerName: entry.customerName || 'Khách lẻ',
+                            items: [itemToInsert],
+                            deposit: 0,
                         });
                     }
-                    return invoice;
-                });
-            } else if (action === 'remove') {
-                invoices = invoices.map(invoice => {
-                    if (invoice.customerName.trim().toLowerCase() === customerKey) {
-                        const originalLen = invoice.items.length;
-                        invoice.items = invoice.items.filter(item =>
-                            item.productName.trim().toLowerCase() !== productKey
-                        );
-                        if (invoice.items.length !== originalLen) changed = true;
-                    }
-                    return invoice;
-                }).filter(inv => inv.items.length > 0);
+                    changed = true;
+                }
             }
 
             if (changed) {
@@ -321,9 +353,9 @@ const RevenueTable: React.FC = () => {
                     }
                 }
 
-                // Update Invoice (Remove item)
+                // Update Invoice status
                 if (entry.customerName) {
-                    syncWithInvoices(entry, 'remove');
+                    syncWithInvoices({ ...entry, status: RevenueStatus.RETURNED }, 'update');
                 }
 
                 // Update Revenue Status
@@ -334,6 +366,14 @@ const RevenueTable: React.FC = () => {
                 alert("Có lỗi xảy ra khi hoàn hàng.");
             }
         }
+    };
+
+    const handleExportPdf = () => {
+        if (filteredData.length === 0) {
+            alert("Không có dữ liệu để xuất PDF.");
+            return;
+        }
+        generateRevenuePDF(selectedMonth, filteredData);
     };
 
     return (
@@ -389,6 +429,9 @@ const RevenueTable: React.FC = () => {
                             </button>
                         )}
 
+                        <button onClick={handleExportPdf} className="whitespace-nowrap bg-green-50 text-green-600 px-3 py-2 rounded-xl hover:bg-green-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs">
+                            <PdfIcon className="w-4 h-4" /> PDF
+                        </button>
                         <button onClick={() => setIsImportModalOpen(true)} className="whitespace-nowrap bg-blue-50 text-blue-600 px-3 py-2 rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs"><UploadIcon className="w-4 h-4" /> Excel</button>
                         <button onClick={() => handleOpenModal()} className="hidden md:flex whitespace-nowrap bg-primary text-white px-3 py-2 rounded-xl hover:bg-primary-700 transition-colors items-center gap-1 shadow-sm font-bold text-xs"><PlusIcon className="w-4 h-4" /> Thêm</button>
                     </div>

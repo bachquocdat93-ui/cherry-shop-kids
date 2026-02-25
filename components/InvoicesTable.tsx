@@ -208,6 +208,7 @@ const InvoicesTable = () => {
             case RevenueStatus.HOLDING: return 'border-primary text-primary';
             case RevenueStatus.SHIPPING: return 'border-green-600 text-green-700';
             case RevenueStatus.DELIVERED: return 'border-yellow-500 text-yellow-600';
+            case RevenueStatus.RETURNED: return 'border-gray-500 text-gray-600';
             default: return 'border-transparent text-gray-500';
         }
     };
@@ -252,6 +253,12 @@ const InvoicesTable = () => {
                     className={`py-3 px-6 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === RevenueStatus.DELIVERED ? getTabColor(RevenueStatus.DELIVERED) : 'border-transparent text-gray-400'}`}
                 >
                     Đã Hoàn Thành
+                </button>
+                <button
+                    onClick={() => setActiveTab(RevenueStatus.RETURNED)}
+                    className={`py-3 px-6 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === RevenueStatus.RETURNED ? getTabColor(RevenueStatus.RETURNED) : 'border-transparent text-gray-400'}`}
+                >
+                    Đã Hoàn/Trả
                 </button>
             </div>
 
