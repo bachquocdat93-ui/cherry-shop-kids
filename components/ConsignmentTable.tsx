@@ -443,7 +443,16 @@ const ConsignmentTable: React.FC = () => {
                                                             className="rounded border-gray-300 text-primary focus:ring-primary"
                                                         />
                                                     </td>
-                                                    {visibleColumns.includes('productName') && <td className="px-4 py-3 whitespace-nowrap text-xs font-bold">{item.productName}</td>}
+                                                    {visibleColumns.includes('productName') && (
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                {item.imageUrl ? (
+                                                                    <img src={item.imageUrl} alt={item.productName} className="w-8 h-8 rounded object-cover border border-gray-200 shrink-0" />
+                                                                ) : null}
+                                                                <span className="text-xs font-bold max-w-[200px] block truncate" title={item.productName}>{item.productName}</span>
+                                                            </div>
+                                                        </td>
+                                                    )}
                                                     {visibleColumns.includes('consignmentPrice') && <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>}
                                                     {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.quantity}</td>}
                                                     {visibleColumns.includes('consignmentFee') && <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.consignmentFee}%</td>}
@@ -495,7 +504,12 @@ const ConsignmentTable: React.FC = () => {
                                                         className="rounded border-gray-300 text-primary focus:ring-primary"
                                                     />
                                                     <div className="min-w-0">
-                                                        <p className="font-bold text-gray-800 text-sm truncate pr-2">{item.productName}</p>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            {item.imageUrl && (
+                                                                <img src={item.imageUrl} alt={item.productName} className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0" />
+                                                            )}
+                                                            <p className="font-bold text-gray-800 text-sm truncate pr-2">{item.productName}</p>
+                                                        </div>
                                                         <div className="flex items-center gap-2">{getStatusBadge(item.status)} <span className="text-[10px] text-gray-400">SL: {item.quantity}</span></div>
                                                     </div>
                                                 </div>

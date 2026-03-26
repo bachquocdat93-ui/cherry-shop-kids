@@ -52,6 +52,7 @@ export interface ConsignmentItem {
   consignmentFee: number; // Percentage
   status: ConsignmentStatus;
   note?: string;
+  imageUrl?: string;
 }
 
 export interface CustomerInfo {
