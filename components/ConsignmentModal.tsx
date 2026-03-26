@@ -37,8 +37,8 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          const MAX_WIDTH = 250;
+          const MAX_HEIGHT = 250;
           let width = img.width;
           let height = img.height;
 
@@ -59,7 +59,7 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
           setFormData(prev => ({ ...prev, imageUrl: compressedBase64 }));
         };
         img.src = reader.result as string;

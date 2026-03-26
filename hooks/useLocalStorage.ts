@@ -12,17 +12,22 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
   });
 
   const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
-    try {
-      setStoredValue(currentValue => {
-        const valueToStore =
-          value instanceof Function ? value(currentValue) : value;
+    setStoredValue(currentValue => {
+      const valueToStore = value instanceof Function ? value(currentValue) : value;
+      try {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
         window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key } }));
         return valueToStore;
-      });
-    } catch (error) {
-      console.error(error);
-    }
+      } catch (error) {
+        console.error("useLocalStorage Error:", error);
+        if ((error as Error).name === 'QuotaExceededError' || String(error).toLowerCase().includes('quota')) {
+          alert('Bộ nhớ đã đầy (lưu quá nhiều ảnh)! Vui lòng xoá bớt dữ liệu cũ hoặc xoá bớt ảnh trước khi thêm tiếp.');
+        } else {
+          alert('Lỗi lưu trữ dữ liệu!');
+        }
+        return currentValue; // Return previous value on failure to prevent stale UI state or crash
+      }
+    });
   };
 
   React.useEffect(() => {
