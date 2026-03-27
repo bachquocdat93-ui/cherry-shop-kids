@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem } from '../types';
+import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem, ConsignmentItem, ConsignmentStatus } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon, RefreshIcon, PdfIcon } from './Icons';
 import RevenueModal from './RevenueModal';
 import ImportModal from './ImportModal';
@@ -191,6 +191,20 @@ const RevenueTable: React.FC = () => {
                             window.dispatchEvent(new Event('storage'));
                         }
                     }
+                } else if (entry.consignor) {
+                    const consDataRaw = window.localStorage.getItem('consignmentData');
+                    if (consDataRaw) {
+                        let consData: ConsignmentItem[] = JSON.parse(consDataRaw);
+                        const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+                        if (cIdx !== -1) {
+                            consData[cIdx].quantity += entry.quantity;
+                            if (consData[cIdx].status === ConsignmentStatus.DEPOSITED && consData[cIdx].quantity > 0) {
+                                consData[cIdx].status = ConsignmentStatus.IN_STOCK;
+                            }
+                            window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("Lỗi hoàn kho:", e);
@@ -226,28 +240,43 @@ const RevenueTable: React.FC = () => {
             // Process reversal for each item
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');
-                if (shopDataRaw) {
-                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
-                    let changed = false;
+                const consDataRaw = window.localStorage.getItem('consignmentData');
+                const shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+                const consData: ConsignmentItem[] = consDataRaw ? JSON.parse(consDataRaw) : [];
+                let shopChanged = false;
+                let consChanged = false;
 
-                    selectedIds.forEach(id => {
-                        const entry = revenueData.find(e => e.id === id);
-                        if (entry && entry.shopItemId) {
-                            const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
-                            if (shopIdx !== -1) {
-                                shopData[shopIdx].quantity += entry.quantity;
-                                changed = true;
+                selectedIds.forEach(id => {
+                    const entry = revenueData.find(e => e.id === id);
+                    if (entry && entry.shopItemId) {
+                        const shopIdx = shopData.findIndex(s => s.id === entry.shopItemId);
+                        if (shopIdx !== -1) {
+                            shopData[shopIdx].quantity += entry.quantity;
+                            shopChanged = true;
+                        }
+                    } else if (entry && entry.consignor) {
+                        const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+                        if (cIdx !== -1) {
+                            consData[cIdx].quantity += entry.quantity;
+                            if (consData[cIdx].status === ConsignmentStatus.DEPOSITED && consData[cIdx].quantity > 0) {
+                                consData[cIdx].status = ConsignmentStatus.IN_STOCK;
                             }
+                            consChanged = true;
                         }
-                        if (entry && entry.customerName) {
-                            syncWithInvoices(entry, 'remove');
-                        }
-                    });
-
-                    if (changed) {
-                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
-                        window.dispatchEvent(new Event('storage'));
                     }
+                    if (entry && entry.customerName) {
+                        syncWithInvoices(entry, 'remove');
+                    }
+                });
+
+                if (shopChanged) {
+                    window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                }
+                if (consChanged) {
+                    window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+                }
+                if (shopChanged || consChanged) {
+                    window.dispatchEvent(new Event('storage'));
                 }
             } catch (e) {
                 console.error("Lỗi hoàn kho bulk:", e);
@@ -268,8 +297,11 @@ const RevenueTable: React.FC = () => {
         if (window.confirm(confirmMsg)) {
             const updatedData = [...revenueData];
             const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+            const consDataRaw = window.localStorage.getItem('consignmentData');
             let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+            let consData: ConsignmentItem[] = consDataRaw ? JSON.parse(consDataRaw) : [];
             let shopChanged = false;
+            let consChanged = false;
 
             selectedIds.forEach(id => {
                 const index = updatedData.findIndex(e => e.id === id);
@@ -284,6 +316,15 @@ const RevenueTable: React.FC = () => {
                             if (shopIdx !== -1) {
                                 shopData[shopIdx].quantity += entry.quantity;
                                 shopChanged = true;
+                            }
+                        } else if (entry.consignor) {
+                            const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+                            if (cIdx !== -1) {
+                                consData[cIdx].quantity += entry.quantity;
+                                if (consData[cIdx].status === ConsignmentStatus.DEPOSITED && consData[cIdx].quantity > 0) {
+                                    consData[cIdx].status = ConsignmentStatus.IN_STOCK;
+                                }
+                                consChanged = true;
                             }
                         }
                     }
@@ -300,6 +341,11 @@ const RevenueTable: React.FC = () => {
 
             if (shopChanged) {
                 window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+            }
+            if (consChanged) {
+                window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+            }
+            if (shopChanged || consChanged) {
                 window.dispatchEvent(new Event('storage'));
             }
 
@@ -399,6 +445,20 @@ const RevenueTable: React.FC = () => {
                         if (shopIdx !== -1) {
                             shopData[shopIdx].quantity += entry.quantity;
                             window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    }
+                } else if (entry.consignor) {
+                    const consDataRaw = window.localStorage.getItem('consignmentData');
+                    if (consDataRaw) {
+                        let consData: ConsignmentItem[] = JSON.parse(consDataRaw);
+                        const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+                        if (cIdx !== -1) {
+                            consData[cIdx].quantity += entry.quantity;
+                            if (consData[cIdx].status === ConsignmentStatus.DEPOSITED && consData[cIdx].quantity > 0) {
+                                consData[cIdx].status = ConsignmentStatus.IN_STOCK;
+                            }
+                            window.localStorage.setItem('consignmentData', JSON.stringify(consData));
                             window.dispatchEvent(new Event('storage'));
                         }
                     }

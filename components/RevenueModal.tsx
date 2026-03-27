@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem } from '../types';
+import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem, ConsignmentStatus } from '../types';
 import { CloseIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -47,8 +47,11 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
 
   const consignedProducts = useMemo(() => {
     if (source !== 'consignor' || !formData.consignor) return [];
-    return consignmentData.filter(item => item.customerName === formData.consignor);
-  }, [source, formData.consignor, consignmentData]);
+    return consignmentData.filter(item => 
+      item.customerName === formData.consignor && 
+      (item.status !== ConsignmentStatus.DEPOSITED || (entry && item.productName === entry.productName && item.consignmentPrice === entry.retailPrice))
+    );
+  }, [source, formData.consignor, consignmentData, entry]);
 
   const handleSourceChange = (newSource: ItemSource) => {
     setSource(newSource);
@@ -146,6 +149,9 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
           const conItemIdx = currentConsignmentData.findIndex(c => c.customerName === formData.consignor && c.productName === formData.productName && c.consignmentPrice === formData.retailPrice);
           if (conItemIdx !== -1) {
             currentConsignmentData[conItemIdx].quantity -= formData.quantity;
+            if (currentConsignmentData[conItemIdx].quantity <= 0) {
+              currentConsignmentData[conItemIdx].status = ConsignmentStatus.DEPOSITED;
+            }
             consignmentChanged = true;
           }
         }
@@ -159,6 +165,16 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
             inventoryChanged = true;
           }
         }
+        if (entry.consignor) {
+           const oldConIdx = currentConsignmentData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+           if (oldConIdx !== -1) {
+               currentConsignmentData[oldConIdx].quantity += entry.quantity;
+               if (currentConsignmentData[oldConIdx].status === ConsignmentStatus.DEPOSITED && currentConsignmentData[oldConIdx].quantity > 0) {
+                   currentConsignmentData[oldConIdx].status = ConsignmentStatus.IN_STOCK;
+               }
+               consignmentChanged = true;
+           }
+        }
         // 2. Apply New
         if (source === 'shop' && selectedShopItemId) {
           const newShopIdx = currentShopData.findIndex(i => i.id === selectedShopItemId);
@@ -170,6 +186,15 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
               importPrice: formData.costPrice
             };
             inventoryChanged = true;
+          }
+        } else if (source === 'consignor' && formData.consignor) {
+          const newConIdx = currentConsignmentData.findIndex(c => c.customerName === formData.consignor && c.productName === formData.productName && c.consignmentPrice === formData.retailPrice);
+          if (newConIdx !== -1) {
+            currentConsignmentData[newConIdx].quantity -= formData.quantity;
+            if (currentConsignmentData[newConIdx].quantity <= 0) {
+              currentConsignmentData[newConIdx].status = ConsignmentStatus.DEPOSITED;
+            }
+            consignmentChanged = true;
           }
         }
       }
@@ -250,9 +275,16 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
             <div>
               <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm <span className="text-red-500">*</span></label>
               {source === 'consignor' && formData.consignor ? (
-                <select id="productName" name="productName" onChange={(e) => handleConsignedProductChange(e.target.value)} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
+                <select 
+                  id="productName" 
+                  name="productName" 
+                  value={consignedProducts.find(p => p.productName === formData.productName && p.consignmentPrice === formData.retailPrice)?.id || ''}
+                  onChange={(e) => handleConsignedProductChange(e.target.value)} 
+                  required 
+                  className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium"
+                >
                   <option value="">Chọn sản phẩm ký gửi...</option>
-                  {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
+                  {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName} (SL: {p.quantity})</option>)}
                 </select>
               ) : (
                 <input type="text" id="productName" name="productName" value={formData.productName} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={source === 'shop'} />
