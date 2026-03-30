@@ -147,8 +147,31 @@ export const generateInvoicePDF = async (invoice: Invoice) => {
     doc.setTextColor(220, 38, 38);
     doc.text(`Còn lại:`, 30, finalY + 40);
     doc.setFontSize(14);
-    doc.setFont('Roboto', 'normal'); // Use normal to ensure Vietnamese renders
+    doc.setFont('Roboto', 'normal'); // Fix: MUST use normal to render Vietnamese 'đ' correctly
     doc.text(`${formatCurrency(remaining)}`, 180, finalY + 40, { align: 'right' });
+
+    // --- LƯU Ý ---
+    let noteY = finalY + 55;
+    if (noteY + 20 > pageHeight) {
+        doc.addPage();
+        noteY = 20;
+    }
+
+    doc.setFont('Roboto', 'normal'); // Fix: Roboto bold missing in bundle, fallback breaks glyphs
+    doc.setFontSize(10);
+    doc.setTextColor(220, 38, 38); // Red-600
+
+    doc.text("LƯU Ý:", 20, noteY);
+    
+    const text1 = "- GIÁ PHÍA TRÊN CHƯA BAO GỒM PHÍ SHIP, PHÍ SHIP TÍNH SAU KHI LÊN ĐƠN";
+    const text2 = "- QUÝ KHÁCH VUI LÒNG QUAY VIDEO KHI BÓC HÀNG. SHOP CHỈ GIẢI QUYẾT KHI CÓ VIDEO, XIN CẢM ƠN.";
+    
+    const splitText1 = doc.splitTextToSize(text1, 170);
+    doc.text(splitText1, 20, noteY + 6);
+    
+    const yOffsetNext = noteY + 6 + (splitText1.length * 5);
+    const splitText2 = doc.splitTextToSize(text2, 170);
+    doc.text(splitText2, 20, yOffsetNext);
 
     // Save
     doc.save(`HD_${invoice.customerName.replace(/\s+/g, '_')}.pdf`);
