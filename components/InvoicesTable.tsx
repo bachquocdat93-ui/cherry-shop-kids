@@ -79,7 +79,7 @@ const InvoicesTable = () => {
                         const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
                         if (conIdx !== -1) {
                             consData[conIdx].quantity += item.quantity;
-                            if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                            if ((consData[conIdx].status === ConsignmentStatus.DEPOSITED || consData[conIdx].status === ConsignmentStatus.SOLD) && consData[conIdx].quantity > 0) {
                                 consData[conIdx].status = ConsignmentStatus.IN_STOCK;
                             }
                             consChanged = true;
@@ -140,7 +140,7 @@ const InvoicesTable = () => {
                                 const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
                                 if (conIdx !== -1) {
                                     consData[conIdx].quantity += item.quantity;
-                                    if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                                    if ((consData[conIdx].status === ConsignmentStatus.DEPOSITED || consData[conIdx].status === ConsignmentStatus.SOLD) && consData[conIdx].quantity > 0) {
                                         consData[conIdx].status = ConsignmentStatus.IN_STOCK;
                                     }
                                     consChanged = true;
@@ -199,11 +199,17 @@ const InvoicesTable = () => {
                                 const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
                                 if (conIdx !== -1) {
                                     consData[conIdx].quantity += item.quantity;
-                                    if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                                    if ((consData[conIdx].status === ConsignmentStatus.DEPOSITED || consData[conIdx].status === ConsignmentStatus.SOLD) && consData[conIdx].quantity > 0) {
                                         consData[conIdx].status = ConsignmentStatus.IN_STOCK;
                                     }
                                     consChanged = true;
                                 }
+                            }
+                        } else if (newStatus !== RevenueStatus.RETURNED && item.consignmentItemId) {
+                            const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
+                            if (conIdx !== -1 && consData[conIdx].quantity <= 0) {
+                                consData[conIdx].status = newStatus === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
+                                consChanged = true;
                             }
                         }
 

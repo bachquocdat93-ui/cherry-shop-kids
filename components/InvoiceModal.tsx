@@ -174,7 +174,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
             if (conItemIdx !== -1) {
               currentConsignmentData[conItemIdx].quantity -= item.quantity;
               if (currentConsignmentData[conItemIdx].quantity <= 0) {
-                 currentConsignmentData[conItemIdx].status = ConsignmentStatus.DEPOSITED;
+                 currentConsignmentData[conItemIdx].status = item.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
               }
               consignmentChanged = true;
             }
@@ -194,7 +194,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
             const conIdx = currentConsignmentData.findIndex(c => c.id === oldItem.consignmentItemId);
             if (conIdx !== -1) {
               currentConsignmentData[conIdx].quantity += oldItem.quantity;
-              if (currentConsignmentData[conIdx].status === ConsignmentStatus.DEPOSITED && currentConsignmentData[conIdx].quantity > 0) {
+              if ((currentConsignmentData[conIdx].status === ConsignmentStatus.DEPOSITED || currentConsignmentData[conIdx].status === ConsignmentStatus.SOLD) && currentConsignmentData[conIdx].quantity > 0) {
                  currentConsignmentData[conIdx].status = ConsignmentStatus.IN_STOCK;
               }
               consignmentChanged = true;
@@ -219,7 +219,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
             if (conIdx !== -1) {
               currentConsignmentData[conIdx].quantity -= newItem.quantity;
               if (currentConsignmentData[conIdx].quantity <= 0) {
-                 currentConsignmentData[conIdx].status = ConsignmentStatus.DEPOSITED;
+                 currentConsignmentData[conIdx].status = newItem.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
               }
               consignmentChanged = true;
             }

@@ -170,7 +170,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
           if (conItemIdx !== -1) {
             currentConsignmentData[conItemIdx].quantity -= formData.quantity;
             if (currentConsignmentData[conItemIdx].quantity <= 0) {
-              currentConsignmentData[conItemIdx].status = ConsignmentStatus.DEPOSITED;
+              currentConsignmentData[conItemIdx].status = formData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
             }
             consignmentChanged = true;
           }
@@ -197,7 +197,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
            }
            if (oldConIdx !== -1) {
                currentConsignmentData[oldConIdx].quantity += entry.quantity;
-               if (currentConsignmentData[oldConIdx].status === ConsignmentStatus.DEPOSITED && currentConsignmentData[oldConIdx].quantity > 0) {
+               if ((currentConsignmentData[oldConIdx].status === ConsignmentStatus.DEPOSITED || currentConsignmentData[oldConIdx].status === ConsignmentStatus.SOLD) && currentConsignmentData[oldConIdx].quantity > 0) {
                    currentConsignmentData[oldConIdx].status = ConsignmentStatus.IN_STOCK;
                }
                consignmentChanged = true;
@@ -220,7 +220,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
           if (newConIdx !== -1) {
             currentConsignmentData[newConIdx].quantity -= formData.quantity;
             if (currentConsignmentData[newConIdx].quantity <= 0) {
-              currentConsignmentData[newConIdx].status = ConsignmentStatus.DEPOSITED;
+              currentConsignmentData[newConIdx].status = formData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
             }
             consignmentChanged = true;
           }
