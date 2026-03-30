@@ -9,6 +9,7 @@ export interface RevenueEntry {
   note?: string;
   consignor?: string;
   shopItemId?: string; // Link to Shop Inventory
+  consignmentItemId?: string; // Link to Consignment Inventory
   status: RevenueStatus;
 }
 
