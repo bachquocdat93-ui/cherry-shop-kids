@@ -56,6 +56,7 @@ const RevenueTable: React.FC = () => {
                     quantity: entry.quantity,
                     status: entry.status,
                     shopItemId: entry.shopItemId,
+                    consignmentItemId: entry.consignmentItemId,
                     revenueEntryId: entry.id, // Shared ID link
                 };
 
@@ -88,6 +89,7 @@ const RevenueTable: React.FC = () => {
                                 sellingPrice: entry.retailPrice,
                                 quantity: entry.quantity,
                                 productName: entry.productName,
+                                consignmentItemId: entry.consignmentItemId,
                                 revenueEntryId: entry.id // Ensure ID is linked
                             };
                         }
@@ -111,6 +113,7 @@ const RevenueTable: React.FC = () => {
                         quantity: entry.quantity,
                         status: entry.status,
                         shopItemId: entry.shopItemId,
+                        consignmentItemId: entry.consignmentItemId,
                         revenueEntryId: entry.id,
                     };
 

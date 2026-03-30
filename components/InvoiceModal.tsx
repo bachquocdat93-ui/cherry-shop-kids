@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Invoice, InvoiceItem, ConsignmentItem, ShopItem } from '../types';
-import { RevenueStatus } from '../types';
+import { RevenueStatus, ConsignmentStatus } from '../types';
 import { CloseIcon, PlusIcon, TrashIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -31,8 +31,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
     const initialSources: Record<string, ItemSource> = {};
     (invoice?.items || []).forEach(item => {
       if (item.shopItemId) initialSources[item.id] = 'shop';
-      // Consignor detection is trickier without explicit field, but we can assume manual if not shop.
-      // Unless we add consignorId to InvoiceItem too? For now, let's focus on Shop Item Sync.
+      else if (item.consignmentItemId) initialSources[item.id] = 'consignor';
       else initialSources[item.id] = 'manual';
     });
     return initialSources;
@@ -40,8 +39,18 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
 
   const [itemSourceDetails, setItemSourceDetails] = useState<Record<string, string>>(() => {
     const initialDetails: Record<string, string> = {};
+    const currentConsignmentRaw = window.localStorage.getItem('consignmentData') || '[]';
+    const storedConsignmentData: ConsignmentItem[] = JSON.parse(currentConsignmentRaw);
+
     (invoice?.items || []).forEach(item => {
-      if (item.shopItemId) initialDetails[item.id] = item.shopItemId;
+      if (item.shopItemId) {
+        initialDetails[item.id] = item.shopItemId;
+      } else if (item.consignmentItemId) {
+        const found = storedConsignmentData.find(c => c.id === item.consignmentItemId);
+        if (found) {
+          initialDetails[item.id] = found.customerName;
+        }
+      }
     });
     return initialDetails;
   });
@@ -69,9 +78,10 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
 
     const itemIndex = items.findIndex(i => i.id === itemId);
     if (itemIndex !== -1) {
-      // Clear shopItemId when changing source type
+      // Clear shopItemId & consignmentItemId when changing source type
       const newItems = [...items];
       delete newItems[itemIndex].shopItemId;
+      delete newItems[itemIndex].consignmentItemId;
       setItems(newItems);
 
       handleItemChange(itemIndex, 'productName', '');
@@ -107,6 +117,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
     if (selectedProduct) {
       handleItemChange(itemIndex, 'productName', selectedProduct.productName);
       handleItemChange(itemIndex, 'sellingPrice', selectedProduct.consignmentPrice);
+      handleItemChange(itemIndex, 'consignmentItemId', selectedProduct.id);
     }
   };
 
@@ -158,11 +169,13 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
               };
               inventoryChanged = true;
             }
-          } else if (source === 'consignor' && detail) {
-            // Detail is CustomerName
-            const conItemIdx = currentConsignmentData.findIndex(c => c.customerName === detail && c.productName === item.productName && c.consignmentPrice === item.sellingPrice);
+          } else if (source === 'consignor' && detail && item.consignmentItemId) {
+            const conItemIdx = currentConsignmentData.findIndex(c => c.id === item.consignmentItemId);
             if (conItemIdx !== -1) {
               currentConsignmentData[conItemIdx].quantity -= item.quantity;
+              if (currentConsignmentData[conItemIdx].quantity <= 0) {
+                 currentConsignmentData[conItemIdx].status = ConsignmentStatus.DEPOSITED;
+              }
               consignmentChanged = true;
             }
           }
@@ -177,14 +190,22 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
               currentShopData[shopIdx].quantity += oldItem.quantity;
               inventoryChanged = true;
             }
+          } else if (oldItem.consignmentItemId) {
+            const conIdx = currentConsignmentData.findIndex(c => c.id === oldItem.consignmentItemId);
+            if (conIdx !== -1) {
+              currentConsignmentData[conIdx].quantity += oldItem.quantity;
+              if (currentConsignmentData[conIdx].status === ConsignmentStatus.DEPOSITED && currentConsignmentData[conIdx].quantity > 0) {
+                 currentConsignmentData[conIdx].status = ConsignmentStatus.IN_STOCK;
+              }
+              consignmentChanged = true;
+            }
           }
         });
 
         // 2. Apply New Items
         items.forEach(newItem => {
-          const shopItemId = newItem.shopItemId;
-          if (shopItemId) {
-            const shopIdx = currentShopData.findIndex(i => i.id === shopItemId);
+          if (newItem.shopItemId) {
+            const shopIdx = currentShopData.findIndex(i => i.id === newItem.shopItemId);
             if (shopIdx !== -1) {
               currentShopData[shopIdx] = {
                 ...currentShopData[shopIdx],
@@ -192,6 +213,15 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
                 retailPrice: newItem.sellingPrice
               };
               inventoryChanged = true;
+            }
+          } else if (newItem.consignmentItemId) {
+            const conIdx = currentConsignmentData.findIndex(c => c.id === newItem.consignmentItemId);
+            if (conIdx !== -1) {
+              currentConsignmentData[conIdx].quantity -= newItem.quantity;
+              if (currentConsignmentData[conIdx].quantity <= 0) {
+                 currentConsignmentData[conIdx].status = ConsignmentStatus.DEPOSITED;
+              }
+              consignmentChanged = true;
             }
           }
         });
@@ -301,7 +331,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
                     <div className="col-span-12 md:col-span-3">
                       <label className="text-[10px] uppercase font-bold text-gray-400">Tên sản phẩm</label>
                       {source === 'consignor' && sourceDetail ? (
-                        <select onChange={(e) => handleConsignedProductChange(index, e.target.value)} required className="block w-full text-sm rounded-md border-gray-300 shadow-sm">
+                        <select onChange={(e) => handleConsignedProductChange(index, e.target.value)} value={item.consignmentItemId || ''} required className="block w-full text-sm rounded-md border-gray-300 shadow-sm">
                           <option value="">Chọn sản phẩm...</option>
                           {consignorProducts.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
                         </select>

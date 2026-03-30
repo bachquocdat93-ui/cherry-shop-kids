@@ -28,6 +28,7 @@ export interface InvoiceItem {
   status: RevenueStatus;
   shopItemId?: string; // Link to Shop Inventory
   revenueEntryId?: string; // Link to Revenue Entry
+  consignmentItemId?: string; // Link to Consignment Inventory
 }
 
 export interface Invoice {

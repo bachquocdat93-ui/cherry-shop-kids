@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
-import type { Invoice, InvoiceItem, RevenueEntry, ShopItem } from '../types';
-import { RevenueStatus } from '../types';
+import type { Invoice, InvoiceItem, RevenueEntry, ShopItem, ConsignmentItem } from '../types';
+import { RevenueStatus, ConsignmentStatus } from '../types';
 import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon } from './Icons';
 import InvoiceModal from './InvoiceModal';
 import ImportModal from './ImportModal';
@@ -62,23 +62,34 @@ const InvoicesTable = () => {
             // Revert Stock
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');
-                if (shopDataRaw) {
-                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
-                    let changed = false;
-                    invoice.items.forEach(item => {
-                        if (item.shopItemId) {
-                            const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
-                            if (shopItemIdx !== -1) {
-                                shopData[shopItemIdx].quantity += item.quantity;
-                                changed = true;
-                            }
+                const consDataRaw = window.localStorage.getItem('consignmentData');
+                let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+                let consData: ConsignmentItem[] = consDataRaw ? JSON.parse(consDataRaw) : [];
+                let shopChanged = false;
+                let consChanged = false;
+
+                invoice.items.forEach(item => {
+                    if (item.shopItemId) {
+                        const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                        if (shopItemIdx !== -1) {
+                            shopData[shopItemIdx].quantity += item.quantity;
+                            shopChanged = true;
                         }
-                    });
-                    if (changed) {
-                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
-                        window.dispatchEvent(new Event('storage'));
+                    } else if (item.consignmentItemId) {
+                        const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
+                        if (conIdx !== -1) {
+                            consData[conIdx].quantity += item.quantity;
+                            if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                                consData[conIdx].status = ConsignmentStatus.IN_STOCK;
+                            }
+                            consChanged = true;
+                        }
                     }
-                }
+                });
+                
+                if (shopChanged) window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                if (consChanged) window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+                if (shopChanged || consChanged) window.dispatchEvent(new Event('storage'));
             } catch (e) {
                 console.error("Lỗi hoàn kho:", e);
             }
@@ -109,30 +120,39 @@ const InvoicesTable = () => {
             // Revert Stock loop
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');
-                if (shopDataRaw) {
-                    let shopData: ShopItem[] = JSON.parse(shopDataRaw);
-                    let changed = false;
+                const consDataRaw = window.localStorage.getItem('consignmentData');
+                let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+                let consData: ConsignmentItem[] = consDataRaw ? JSON.parse(consDataRaw) : [];
+                let shopChanged = false;
+                let consChanged = false;
 
-                    selectedIds.forEach(id => {
-                        const invoice = invoices.find(i => i.id === id);
-                        if (invoice) {
-                            invoice.items.forEach(item => {
-                                if (item.shopItemId) {
-                                    const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
-                                    if (shopItemIdx !== -1) {
-                                        shopData[shopItemIdx].quantity += item.quantity;
-                                        changed = true;
-                                    }
+                selectedIds.forEach(id => {
+                    const invoice = invoices.find(i => i.id === id);
+                    if (invoice) {
+                        invoice.items.forEach(item => {
+                            if (item.shopItemId) {
+                                const shopItemIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                                if (shopItemIdx !== -1) {
+                                    shopData[shopItemIdx].quantity += item.quantity;
+                                    shopChanged = true;
                                 }
-                            });
-                        }
-                    });
-
-                    if (changed) {
-                        window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
-                        window.dispatchEvent(new Event('storage'));
+                            } else if (item.consignmentItemId) {
+                                const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
+                                if (conIdx !== -1) {
+                                    consData[conIdx].quantity += item.quantity;
+                                    if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                                        consData[conIdx].status = ConsignmentStatus.IN_STOCK;
+                                    }
+                                    consChanged = true;
+                                }
+                            }
+                        });
                     }
-                }
+                });
+
+                if (shopChanged) window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+                if (consChanged) window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+                if (shopChanged || consChanged) window.dispatchEvent(new Event('storage'));
             } catch (e) {
                 console.error("Lỗi hoàn kho bulk:", e);
             }
@@ -154,8 +174,11 @@ const InvoicesTable = () => {
             let revenueChanged = false;
 
             const shopDataRaw = window.localStorage.getItem('shopInventoryData');
+            const consDataRaw = window.localStorage.getItem('consignmentData');
             let shopData: ShopItem[] = shopDataRaw ? JSON.parse(shopDataRaw) : [];
+            let consData: ConsignmentItem[] = consDataRaw ? JSON.parse(consDataRaw) : [];
             let shopChanged = false;
+            let consChanged = false;
 
             selectedIds.forEach(id => {
                 const invIdx = updatedInvoices.findIndex(inv => inv.id === id);
@@ -171,6 +194,15 @@ const InvoicesTable = () => {
                                 if (shopIdx !== -1) {
                                     shopData[shopIdx].quantity += item.quantity;
                                     shopChanged = true;
+                                }
+                            } else if (item.consignmentItemId) {
+                                const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
+                                if (conIdx !== -1) {
+                                    consData[conIdx].quantity += item.quantity;
+                                    if (consData[conIdx].status === ConsignmentStatus.DEPOSITED && consData[conIdx].quantity > 0) {
+                                        consData[conIdx].status = ConsignmentStatus.IN_STOCK;
+                                    }
+                                    consChanged = true;
                                 }
                             }
                         }
@@ -193,11 +225,14 @@ const InvoicesTable = () => {
 
             if (revenueChanged) {
                 window.localStorage.setItem('revenueData', JSON.stringify(revenueEntries));
-                window.dispatchEvent(new Event('storage'));
             }
-
             if (shopChanged) {
                 window.localStorage.setItem('shopInventoryData', JSON.stringify(shopData));
+            }
+            if (consChanged) {
+                window.localStorage.setItem('consignmentData', JSON.stringify(consData));
+            }
+            if (revenueChanged || shopChanged || consChanged) {
                 window.dispatchEvent(new Event('storage'));
             }
 
