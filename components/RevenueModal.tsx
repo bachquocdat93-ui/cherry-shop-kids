@@ -69,15 +69,28 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
     return Array.from(names);
   }, [consignmentData]);
 
-  const shopItems = useMemo(() => shopInventoryData, [shopInventoryData]);
+  const availableShopItems = useMemo(() => {
+    return shopInventoryData.map(item => {
+      const addedQty = addedItems.filter(added => added.source === 'shop' && added.shopItemId === item.id)
+                                 .reduce((sum, added) => sum + added.quantity, 0);
+      return { ...item, remainingQuantity: item.quantity - addedQty };
+    });
+  }, [shopInventoryData, addedItems]);
 
-  const consignedProducts = useMemo(() => {
+  const availableConsignedProducts = useMemo(() => {
     if (productForm.source !== 'consignor' || !productForm.consignor) return [];
-    return consignmentData.filter(item => 
-      item.customerName === productForm.consignor && 
-      (item.status !== ConsignmentStatus.DEPOSITED || item.id === productForm.consignmentItemId)
-    );
-  }, [productForm.source, productForm.consignor, consignmentData, productForm.consignmentItemId]);
+    
+    return consignmentData
+      .filter(item => 
+        item.customerName === productForm.consignor && 
+        (item.status !== ConsignmentStatus.DEPOSITED || item.id === productForm.consignmentItemId)
+      )
+      .map(item => {
+        const addedQty = addedItems.filter(added => added.source === 'consignor' && added.consignmentItemId === item.id)
+                                   .reduce((sum, added) => sum + added.quantity, 0);
+        return { ...item, remainingQuantity: item.quantity - addedQty };
+      });
+  }, [productForm.source, productForm.consignor, consignmentData, productForm.consignmentItemId, addedItems]);
 
   const handleCommonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -373,9 +386,9 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Chọn sản phẩm trong kho</label>
                         <select value={productForm.shopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
                           <option value="">-- Chọn sản phẩm --</option>
-                          {shopItems.map(item => (
-                            <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
-                              {item.productName} (SL: {item.quantity}) {item.quantity <= 0 ? '- Hết hàng' : ''}
+                          {availableShopItems.map(item => (
+                            <option key={item.id} value={item.id} disabled={item.remainingQuantity <= 0}>
+                              {item.productName} (SL: {item.remainingQuantity}) {item.remainingQuantity <= 0 ? '- Vừa hết/Đã chọn' : ''}
                             </option>
                           ))}
                         </select>
@@ -403,7 +416,11 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                           className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium"
                         >
                           <option value="">Chọn sản phẩm...</option>
-                          {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName} (SL: {p.quantity})</option>)}
+                          {availableConsignedProducts.map(p => (
+                            <option key={p.id} value={p.id} disabled={p.remainingQuantity <= 0}>
+                                {p.productName} (SL: {p.remainingQuantity}) {p.remainingQuantity <= 0 ? '- Đã chọn hết' : ''}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         <input type="text" id="productName" name="productName" value={productForm.productName} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={productForm.source === 'shop'} placeholder={productForm.source !== 'manual' ? 'Tự động điền...' : 'Váy thiết kế...'} />
