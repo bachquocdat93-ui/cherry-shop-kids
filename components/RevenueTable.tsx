@@ -150,18 +150,23 @@ const RevenueTable: React.FC = () => {
         setEditingEntry(null);
     };
 
-    const handleSave = (entry: RevenueEntry) => {
-        const entryWithDefaultName = {
-            ...entry,
-            customerName: entry.customerName?.trim() || 'Khách lẻ'
-        };
-
+    const handleSave = (entries: RevenueEntry[]) => {
         if (editingEntry) {
-            setRevenueData(prev => prev.map(e => e.id === entry.id ? entry : e));
+            const entry = entries[0];
+            const entryWithDefaultName = {
+                ...entry,
+                customerName: entry.customerName?.trim() || 'Khách lẻ'
+            };
+
+            setRevenueData(prev => prev.map(e => e.id === entry.id ? entryWithDefaultName : e));
             syncWithInvoices(entryWithDefaultName, 'update');
         } else {
-            setRevenueData(prev => [...prev, entry]);
-            syncWithInvoices(entryWithDefaultName, 'add');
+            const newEntries = entries.map(entry => ({
+                ...entry,
+                customerName: entry.customerName?.trim() || 'Khách lẻ'
+            }));
+            setRevenueData(prev => [...prev, ...newEntries]);
+            newEntries.forEach(entry => syncWithInvoices(entry, 'add'));
         }
         handleCloseModal();
     };

@@ -1,58 +1,68 @@
 import React, { useState, useMemo } from 'react';
 import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem, ConsignmentStatus } from '../types';
-import { CloseIcon } from './Icons';
+import { CloseIcon, TrashIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 interface RevenueModalProps {
   entry: RevenueEntry | null;
-  onSave: (entry: RevenueEntry) => void;
+  onSave: (entries: RevenueEntry[]) => void;
   onClose: () => void;
 }
 
 type ItemSource = 'manual' | 'shop' | 'consignor';
 
+type ProductFormData = {
+  id: string; // Used for added list
+  source: ItemSource;
+  shopItemId: string;
+  consignor: string;
+  consignmentItemId: string;
+  productName: string;
+  costPrice: number;
+  retailPrice: number;
+  quantity: number;
+  note: string;
+};
+
 const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) => {
-  const [formData, setFormData] = useState<Omit<RevenueEntry, 'id'>>(() => {
+  const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
+  const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
+
+  const [commonData, setCommonData] = useState({
+    date: entry?.date || new Date().toISOString().slice(0, 10),
+    customerName: entry?.customerName || '',
+    status: entry?.status || RevenueStatus.HOLDING,
+  });
+
+  const getInitialConsignmentItemId = () => {
     let initialConsignmentItemId = entry?.consignmentItemId || '';
     if (entry?.consignor && !initialConsignmentItemId) {
-      const currentConsignmentRaw = window.localStorage.getItem('consignmentData') || '[]';
-      const storedConsignmentData: ConsignmentItem[] = JSON.parse(currentConsignmentRaw);
-      let found = storedConsignmentData.find(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
+      let found = consignmentData.find(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
       if (!found) {
-        found = storedConsignmentData.find(c => c.customerName === entry.consignor && c.productName === entry.productName);
+        found = consignmentData.find(c => c.customerName === entry.consignor && c.productName === entry.productName);
       }
       if (found) {
         initialConsignmentItemId = found.id;
       }
     }
+    return initialConsignmentItemId;
+  };
 
-    return {
-      date: entry?.date || new Date().toISOString().slice(0, 10),
-      customerName: entry?.customerName || '',
-      productName: entry?.productName || '',
-      costPrice: entry?.costPrice || 0,
-      retailPrice: entry?.retailPrice || 0,
-      quantity: entry?.quantity || 1,
-      note: entry?.note || '',
-      consignor: entry?.consignor || '',
-      shopItemId: entry?.shopItemId || '',
-      consignmentItemId: initialConsignmentItemId,
-      status: entry?.status || RevenueStatus.HOLDING,
-    };
+  const [productForm, setProductForm] = useState<ProductFormData>({
+    id: entry?.id || generateUniqueId(),
+    source: entry ? (entry.consignor ? 'consignor' : (entry.shopItemId ? 'shop' : 'manual')) : 'manual',
+    shopItemId: entry?.shopItemId || '',
+    consignor: entry?.consignor || '',
+    consignmentItemId: getInitialConsignmentItemId(),
+    productName: entry?.productName || '',
+    costPrice: entry?.costPrice || 0,
+    retailPrice: entry?.retailPrice || 0,
+    quantity: entry?.quantity || 1,
+    note: entry?.note || '',
   });
 
-  const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
-  const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
-
-  // Initialize source based on entry data
-  const [source, setSource] = useState<ItemSource>(() => {
-    if (entry?.consignor) return 'consignor';
-    if (entry?.shopItemId) return 'shop';
-    return 'manual';
-  });
-
-  const [selectedShopItemId, setSelectedShopItemId] = useState<string>(entry?.shopItemId || '');
+  const [addedItems, setAddedItems] = useState<ProductFormData[]>([]);
 
   const consignors = useMemo(() => {
     const names = new Set(consignmentData.map(item => item.customerName));
@@ -62,17 +72,30 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
   const shopItems = useMemo(() => shopInventoryData, [shopInventoryData]);
 
   const consignedProducts = useMemo(() => {
-    if (source !== 'consignor' || !formData.consignor) return [];
+    if (productForm.source !== 'consignor' || !productForm.consignor) return [];
     return consignmentData.filter(item => 
-      item.customerName === formData.consignor && 
-      (item.status !== ConsignmentStatus.DEPOSITED || item.id === formData.consignmentItemId)
+      item.customerName === productForm.consignor && 
+      (item.status !== ConsignmentStatus.DEPOSITED || item.id === productForm.consignmentItemId)
     );
-  }, [source, formData.consignor, consignmentData, formData.consignmentItemId]);
+  }, [productForm.source, productForm.consignor, consignmentData, productForm.consignmentItemId]);
+
+  const handleCommonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setCommonData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setProductForm(prev => ({
+      ...prev,
+      [name]: (name.includes('Price') || name === 'quantity') ? parseFloat(value) || 0 : value
+    }));
+  };
 
   const handleSourceChange = (newSource: ItemSource) => {
-    setSource(newSource);
-    setFormData(prev => ({
+    setProductForm(prev => ({
       ...prev,
+      source: newSource,
       consignor: '',
       productName: '',
       costPrice: 0,
@@ -80,14 +103,12 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
       shopItemId: '',
       consignmentItemId: ''
     }));
-    setSelectedShopItemId('');
   };
 
   const handleShopItemChange = (itemId: string) => {
-    setSelectedShopItemId(itemId);
     const item = shopInventoryData.find(i => i.id === itemId);
     if (item) {
-      setFormData(prev => ({
+      setProductForm(prev => ({
         ...prev,
         productName: item.productName,
         costPrice: item.importPrice,
@@ -95,14 +116,15 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
         shopItemId: itemId,
         consignmentItemId: ''
       }));
+    } else {
+        setProductForm(prev => ({ ...prev, shopItemId: itemId }));
     }
   };
 
   const handleConsignorChange = (consignorName: string) => {
-    setFormData(prev => ({
+    setProductForm(prev => ({
       ...prev,
       consignor: consignorName,
-      // Reset product-related fields when consignor changes
       productName: '',
       costPrice: 0,
       retailPrice: 0,
@@ -115,32 +137,55 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
     const product = consignmentData.find(p => p.id === productId);
     if (product) {
       const costPrice = product.consignmentPrice * (1 - product.consignmentFee / 100);
-      setFormData(prev => ({
+      setProductForm(prev => ({
         ...prev,
         productName: product.productName,
         retailPrice: product.consignmentPrice,
         costPrice: costPrice,
         consignmentItemId: product.id
       }));
+    } else {
+        setProductForm(prev => ({ ...prev, consignmentItemId: productId }));
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: (name.includes('Price') || name === 'quantity') ? parseFloat(value) || 0 : value
-    }));
+  const handleAddToList = () => {
+    if (!productForm.productName || productForm.retailPrice < 0 || productForm.quantity <= 0) {
+      alert('Vui lòng điền đủ Tên sản phẩm, Giá bán và Số lượng.');
+      return;
+    }
+    setAddedItems(prev => [...prev, { ...productForm, id: generateUniqueId() }]);
+    setProductForm({
+      id: generateUniqueId(),
+      source: 'manual',
+      shopItemId: '',
+      consignor: '',
+      consignmentItemId: '',
+      productName: '',
+      costPrice: 0,
+      retailPrice: 0,
+      quantity: 1,
+      note: ''
+    });
+  };
+
+  const handleRemoveFromList = (id: string) => {
+    setAddedItems(prev => prev.filter(i => i.id !== id));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.productName || formData.retailPrice < 0 || formData.quantity <= 0) {
-      alert('Vui lòng điền các trường bắt buộc: Tên sản phẩm, Giá bán, Số lượng.');
+    
+    const itemsToProcess = [...addedItems];
+    if (productForm.productName && productForm.retailPrice >= 0 && productForm.quantity > 0) {
+      itemsToProcess.push({ ...productForm });
+    }
+
+    if (itemsToProcess.length === 0) {
+      alert('Vui lòng thêm ít nhất một sản phẩm hợp lệ.');
       return;
     }
 
-    // Deduction Logic & Price Sync - DIRECT LOCALSTORAGE ACCESS
     try {
       const currentShopDataRaw = window.localStorage.getItem('shopInventoryData') || '[]';
       let currentShopData: ShopItem[] = JSON.parse(currentShopDataRaw);
@@ -151,37 +196,39 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
       let consignmentChanged = false;
 
       if (!entry) {
-        // NEW ENTRY - DEDUCT
-        if (source === 'shop' && selectedShopItemId) {
-          const shopIdx = currentShopData.findIndex(i => i.id === selectedShopItemId);
-          if (shopIdx !== -1) {
-            const qtyToDeduct = formData.quantity;
-
-            currentShopData[shopIdx] = {
-              ...currentShopData[shopIdx],
-              quantity: currentShopData[shopIdx].quantity - qtyToDeduct, // Deduct
-              retailPrice: formData.retailPrice, // Sync Price
-              importPrice: formData.costPrice
-            };
-            inventoryChanged = true;
-          }
-        } else if (source === 'consignor' && formData.consignor && formData.consignmentItemId) {
-          const conItemIdx = currentConsignmentData.findIndex(c => c.id === formData.consignmentItemId);
-          if (conItemIdx !== -1) {
-            currentConsignmentData[conItemIdx].quantity -= formData.quantity;
-            if (currentConsignmentData[conItemIdx].quantity <= 0) {
-              currentConsignmentData[conItemIdx].status = formData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
-            }
-            consignmentChanged = true;
-          }
+        // NEW ENTRIES
+        for (const item of itemsToProcess) {
+           if (item.source === 'shop' && item.shopItemId) {
+              const shopIdx = currentShopData.findIndex(i => i.id === item.shopItemId);
+              if (shopIdx !== -1) {
+                currentShopData[shopIdx] = {
+                  ...currentShopData[shopIdx],
+                  quantity: currentShopData[shopIdx].quantity - item.quantity,
+                  retailPrice: item.retailPrice,
+                  importPrice: item.costPrice
+                };
+                inventoryChanged = true;
+              }
+           } else if (item.source === 'consignor' && item.consignor && item.consignmentItemId) {
+              const conItemIdx = currentConsignmentData.findIndex(c => c.id === item.consignmentItemId);
+              if (conItemIdx !== -1) {
+                currentConsignmentData[conItemIdx].quantity -= item.quantity;
+                if (currentConsignmentData[conItemIdx].quantity <= 0) {
+                  currentConsignmentData[conItemIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
+                }
+                consignmentChanged = true;
+              }
+           }
         }
       } else {
-        // EDIT ENTRY - REVERT & APPLY
+        // EDIT ENTRY (only 1 item)
+        const newForm = itemsToProcess[0];
+        
         // 1. Revert Old
         if (entry.shopItemId) {
           const oldShopIdx = currentShopData.findIndex(i => i.id === entry.shopItemId);
           if (oldShopIdx !== -1) {
-            currentShopData[oldShopIdx].quantity += entry.quantity; // Add back
+            currentShopData[oldShopIdx].quantity += entry.quantity;
             inventoryChanged = true;
           }
         }
@@ -204,23 +251,23 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
            }
         }
         // 2. Apply New
-        if (source === 'shop' && selectedShopItemId) {
-          const newShopIdx = currentShopData.findIndex(i => i.id === selectedShopItemId);
+        if (newForm.source === 'shop' && newForm.shopItemId) {
+          const newShopIdx = currentShopData.findIndex(i => i.id === newForm.shopItemId);
           if (newShopIdx !== -1) {
             currentShopData[newShopIdx] = {
               ...currentShopData[newShopIdx],
-              quantity: currentShopData[newShopIdx].quantity - formData.quantity, // Deduct new
-              retailPrice: formData.retailPrice,
-              importPrice: formData.costPrice
+              quantity: currentShopData[newShopIdx].quantity - newForm.quantity,
+              retailPrice: newForm.retailPrice,
+              importPrice: newForm.costPrice
             };
             inventoryChanged = true;
           }
-        } else if (source === 'consignor' && formData.consignor && formData.consignmentItemId) {
-          const newConIdx = currentConsignmentData.findIndex(c => c.id === formData.consignmentItemId);
+        } else if (newForm.source === 'consignor' && newForm.consignor && newForm.consignmentItemId) {
+          const newConIdx = currentConsignmentData.findIndex(c => c.id === newForm.consignmentItemId);
           if (newConIdx !== -1) {
-            currentConsignmentData[newConIdx].quantity -= formData.quantity;
+            currentConsignmentData[newConIdx].quantity -= newForm.quantity;
             if (currentConsignmentData[newConIdx].quantity <= 0) {
-              currentConsignmentData[newConIdx].status = formData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
+              currentConsignmentData[newConIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
             }
             consignmentChanged = true;
           }
@@ -244,7 +291,22 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
       return;
     }
 
-    onSave({ ...formData, id: entry?.id || generateUniqueId() });
+    const finalEntries: RevenueEntry[] = itemsToProcess.map(item => ({
+      id: item.id,
+      date: commonData.date,
+      customerName: commonData.customerName,
+      status: commonData.status,
+      productName: item.productName,
+      costPrice: item.costPrice,
+      retailPrice: item.retailPrice,
+      quantity: item.quantity,
+      note: item.note,
+      consignor: item.consignor,
+      shopItemId: item.shopItemId,
+      consignmentItemId: item.consignmentItemId
+    }));
+
+    onSave(finalEntries);
   };
 
   return (
@@ -257,108 +319,130 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
               <CloseIcon />
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ngày bán <span className="text-red-500">*</span></label>
-              <input type="date" id="date" name="date" value={formData.date} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
-            </div>
-            <div>
-              <label htmlFor="customerName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên khách hàng</label>
-              <input type="text" id="customerName" name="customerName" value={formData.customerName} onChange={handleChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl shadow-inner mb-6 border border-gray-100">
+                <div className="col-span-2">
+                  <label htmlFor="customerName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên khách hàng</label>
+                  <input type="text" id="customerName" name="customerName" value={commonData.customerName} onChange={handleCommonChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                </div>
+                <div>
+                  <label htmlFor="date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ngày bán <span className="text-red-500">*</span></label>
+                  <input type="date" id="date" name="date" value={commonData.date} onChange={handleCommonChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                </div>
+                <div>
+                  <label htmlFor="status" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Trạng Thái</label>
+                  <select id="status" name="status" value={commonData.status} onChange={handleCommonChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-bold bg-white">
+                    <option value={RevenueStatus.HOLDING}>Dồn đơn</option>
+                    <option value={RevenueStatus.SHIPPING}>Đang đi đơn</option>
+                    <option value={RevenueStatus.DELIVERED}>Đã giao hàng</option>
+                  </select>
+                </div>
             </div>
 
-            <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nguồn hàng</label>
-              <div className="flex space-x-2">
-                <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'manual' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>Nhập tay</button>
-                <button type="button" onClick={() => handleSourceChange('shop')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'shop' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200'}`}>Kho Shop</button>
-                <button type="button" onClick={() => handleSourceChange('consignor')} className={`flex-1 py-2 text-xs font-bold rounded-lg border ${source === 'consignor' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'}`}>Ký Gửi</button>
-              </div>
-            </div>
-
-            {source === 'shop' && (
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Chọn sản phẩm trong kho</label>
-                <select value={selectedShopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {shopItems.map(item => (
-                    <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
-                      {item.productName} (SL: {item.quantity}) {item.quantity <= 0 ? '- Hết hàng' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {addedItems.length > 0 && !entry && (
+               <div className="mb-4 space-y-2">
+                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Đã thêm ({addedItems.length} sản phẩm)</label>
+                 {addedItems.map((item, index) => (
+                    <div key={item.id} className="flex justify-between items-center bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">{index + 1}. {item.productName}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{item.quantity} x {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.retailPrice)}</p>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 p-1.5 bg-white hover:bg-red-50 rounded-lg shadow-sm border border-red-100 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    </div>
+                 ))}
+               </div>
             )}
 
-            {source === 'consignor' && (
-              <div>
-                <label htmlFor="consignor" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Khách ký gửi</label>
-                <select id="consignor" name="consignor" value={formData.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
-                  <option value="">Chọn khách ký gửi...</option>
-                  {consignors.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </div>
+            <div className="p-4 border border-gray-100 rounded-xl relative">
+                {addedItems.length > 0 && !entry && (
+                  <span className="absolute -top-2 left-4 bg-white px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sản phẩm tiếp theo</span>
+                )}
+                <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nguồn hàng</label>
+                      <div className="flex space-x-2">
+                        <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'manual' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Nhập tay</button>
+                        <button type="button" onClick={() => handleSourceChange('shop')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'shop' ? 'bg-primary text-white border-primary shadow-md shadow-primary/20' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Kho Shop</button>
+                        <button type="button" onClick={() => handleSourceChange('consignor')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'consignor' ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Ký Gửi</button>
+                      </div>
+                    </div>
+
+                    {productForm.source === 'shop' && (
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Chọn sản phẩm trong kho</label>
+                        <select value={productForm.shopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
+                          <option value="">-- Chọn sản phẩm --</option>
+                          {shopItems.map(item => (
+                            <option key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                              {item.productName} (SL: {item.quantity}) {item.quantity <= 0 ? '- Hết hàng' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {productForm.source === 'consignor' && (
+                      <div>
+                        <label htmlFor="consignor" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Khách ký gửi</label>
+                        <select id="consignor" name="consignor" value={productForm.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
+                          <option value="">Chọn khách...</option>
+                          {consignors.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    <div>
+                      <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm {productForm.source === 'manual' && <span className="text-red-500">*</span>}</label>
+                      {productForm.source === 'consignor' && productForm.consignor ? (
+                        <select 
+                          id="productName" 
+                          name="productName" 
+                          value={productForm.consignmentItemId || ''}
+                          onChange={(e) => handleConsignedProductChange(e.target.value)} 
+                          className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium"
+                        >
+                          <option value="">Chọn sản phẩm...</option>
+                          {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName} (SL: {p.quantity})</option>)}
+                        </select>
+                      ) : (
+                        <input type="text" id="productName" name="productName" value={productForm.productName} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={productForm.source === 'shop'} placeholder={productForm.source !== 'manual' ? 'Tự động điền...' : 'Váy thiết kế...'} />
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-1">
+                        <label htmlFor="costPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Nhập</label>
+                        <input type="number" id="costPrice" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                      </div>
+                      <div className="col-span-1">
+                        <label htmlFor="retailPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Bán <span className="text-red-500">*</span></label>
+                        <input type="number" id="retailPrice" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                      </div>
+                      <div className="col-span-1">
+                          <label htmlFor="quantity" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">SL <span className="text-red-500">*</span></label>
+                          <input type="number" id="quantity" name="quantity" value={productForm.quantity} onChange={handleProductChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium font-bold text-center" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="note" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ghi chú SP</label>
+                      <input type="text" id="note" name="note" value={productForm.note} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-xs font-medium" placeholder="Màu sắc, kích cỡ..." />
+                    </div>
+                </div>
+            </div>
+
+            {!entry && (
+               <button type="button" onClick={handleAddToList} className="mt-2 w-full py-2.5 border-2 border-dashed border-primary/30 text-primary-600 bg-primary-50 font-black text-xs uppercase tracking-tight rounded-xl hover:bg-primary-100 transition-colors flex items-center justify-center gap-2">
+                  <span>+</span> Thêm 1 sản phẩm nữa vào đơn
+               </button>
             )}
 
-            <div>
-              <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm <span className="text-red-500">*</span></label>
-              {source === 'consignor' && formData.consignor ? (
-                <select 
-                  id="productName" 
-                  name="productName" 
-                  value={formData.consignmentItemId || ''}
-                  onChange={(e) => handleConsignedProductChange(e.target.value)} 
-                  required 
-                  className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium"
-                >
-                  <option value="">Chọn sản phẩm ký gửi...</option>
-                  {consignedProducts.map(p => <option key={p.id} value={p.id}>{p.productName} (SL: {p.quantity})</option>)}
-                </select>
-              ) : (
-                <input type="text" id="productName" name="productName" value={formData.productName} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={source === 'shop'} />
-              )}
+            <div className="flex justify-end pt-6 space-x-3 border-t border-gray-100 mt-6">
+              <button type="button" onClick={onClose} className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-bold transition-all text-sm">Đóng</button>
+              <button type="button" onClick={handleSubmit} className="px-8 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 font-black shadow-lg shadow-primary/20 transition-all text-sm uppercase tracking-tight">Lưu Toàn Bộ Đơn</button>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="costPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Nhập</label>
-                <input type="number" id="costPrice" name="costPrice" value={formData.costPrice} onChange={handleChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
-              </div>
-              <div>
-                <label htmlFor="retailPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Bán Lẻ <span className="text-red-500">*</span></label>
-                <input type="number" id="retailPrice" name="retailPrice" value={formData.retailPrice} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="quantity" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Số Lượng <span className="text-red-500">*</span></label>
-              <input type="number" id="quantity" name="quantity" value={formData.quantity} onChange={handleChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
-            </div>
-
-            <div>
-              <label htmlFor="note" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ghi chú</label>
-              <textarea id="note" name="note" value={formData.note} onChange={handleChange} rows={2} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
-            </div>
-
-            <div>
-              <label htmlFor="status" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Trạng Thái Đơn Hàng</label>
-              <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-bold bg-gray-50"
-              >
-                <option value={RevenueStatus.HOLDING}>Dồn đơn</option>
-                <option value={RevenueStatus.SHIPPING}>Đang đi đơn</option>
-                <option value={RevenueStatus.DELIVERED}>Đã giao hàng</option>
-              </select>
-            </div>
-            <div className="flex justify-end pt-6 space-x-3">
-              <button type="button" onClick={onClose} className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-bold transition-all">Đóng</button>
-              <button type="submit" className="px-8 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 font-black shadow-lg shadow-primary/20 transition-all">Lưu giao dịch</button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
