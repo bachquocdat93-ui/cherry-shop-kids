@@ -207,7 +207,7 @@ const InvoicesTable = () => {
                             }
                         } else if (newStatus !== RevenueStatus.RETURNED && item.consignmentItemId) {
                             const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
-                            if (conIdx !== -1 && consData[conIdx].quantity <= 0) {
+                            if (conIdx !== -1) {
                                 consData[conIdx].status = newStatus === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
                                 consChanged = true;
                             }

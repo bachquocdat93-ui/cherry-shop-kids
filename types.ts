@@ -51,6 +51,7 @@ export interface ConsignmentItem {
   productName: string;
   consignmentPrice: number;
   quantity: number;
+  soldQuantity?: number;
   consignmentFee: number; // Percentage
   status: ConsignmentStatus;
   note?: string;

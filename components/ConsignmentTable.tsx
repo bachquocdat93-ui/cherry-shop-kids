@@ -231,15 +231,27 @@ const ConsignmentTable: React.FC = () => {
     };
 
     const calculateSummary = (customerItems: ConsignmentItem[]) => {
-        const totalItems = customerItems.reduce((sum, item) => sum + item.quantity, 0);
-        const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD).reduce((sum, item) => sum + item.quantity, 0);
-        const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED).reduce((sum, item) => sum + item.quantity, 0);
+        const getEffectiveQty = (item: ConsignmentItem) => {
+            if (item.soldQuantity !== undefined && item.soldQuantity > 0) return item.soldQuantity;
+            if ((item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED) && item.quantity === 0) {
+                return 1;
+            }
+            return item.quantity;
+        };
+
+        const totalItems = customerItems.reduce((sum, item) => sum + item.quantity + (item.soldQuantity || ((item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED) && item.quantity === 0 ? 1 : 0)), 0);
+        const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD).reduce((sum, item) => sum + getEffectiveQty(item), 0);
+        const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED).reduce((sum, item) => sum + getEffectiveQty(item), 0);
         const returnedItems = customerItems.filter(i => i.status === ConsignmentStatus.RETURNED).reduce((sum, item) => sum + item.quantity, 0);
         const inStockItems = customerItems.filter(i => i.status === ConsignmentStatus.IN_STOCK).reduce((sum, item) => sum + item.quantity, 0);
+        
         const totalTransferAmount = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
-            .reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * item.quantity, 0);
+            .reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * getEffectiveQty(item), 0);
 
-        return { totalItems, soldItems, depositedItems, returnedItems, inStockItems, totalValueSold: totalTransferAmount, totalTransferAmount };
+        const totalValueSold = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
+            .reduce((sum, item) => sum + item.consignmentPrice * getEffectiveQty(item), 0);
+
+        return { totalItems, soldItems, depositedItems, returnedItems, inStockItems, totalValueSold, totalTransferAmount };
     };
 
     const handleSettle = (customerName: string, customerItems: ConsignmentItem[]) => {
@@ -265,6 +277,7 @@ const ConsignmentTable: React.FC = () => {
             // 1. Generate Revenue Entries for the Shop's Profit
             const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD);
             const newRevenueEntries: RevenueEntry[] = soldItems.map(item => {
+                const effectiveSoldQty = item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity);
                 const profitPerItem = item.consignmentPrice * (item.consignmentFee / 100);
                 return {
                     id: crypto.randomUUID(),
@@ -273,7 +286,7 @@ const ConsignmentTable: React.FC = () => {
                     productName: `Phí ký gửi: ${item.productName}`,
                     costPrice: 0, // Pure profit
                     retailPrice: profitPerItem, // The fee is the revenue
-                    quantity: item.quantity,
+                    quantity: effectiveSoldQty,
                     note: `Thanh toán hàng ký gửi. Giá bán gốc: ${item.consignmentPrice}`,
                     status: RevenueStatus.DELIVERED,
                     consignor: item.customerName
@@ -433,6 +446,10 @@ const ConsignmentTable: React.FC = () => {
                                         {customerItems.map(item => {
                                             const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
                                             const isSelected = selectedIds.includes(item.id);
+                                            const effectiveQty = (item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED)
+                                                ? (item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity))
+                                                : item.quantity;
+
                                             return (
                                                 <tr key={item.id} className={`${getStatusRowClass(item.status)} hover:opacity-95 transition-opacity ${isSelected ? 'ring-2 ring-inset ring-blue-400 bg-blue-50' : ''}`}>
                                                     <td className="px-4 py-3 text-center">
@@ -454,7 +471,7 @@ const ConsignmentTable: React.FC = () => {
                                                         </td>
                                                     )}
                                                     {visibleColumns.includes('consignmentPrice') && <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>}
-                                                    {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.quantity}</td>}
+                                                    {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{effectiveQty}</td>}
                                                     {visibleColumns.includes('consignmentFee') && <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.consignmentFee}%</td>}
                                                     {visibleColumns.includes('amountAfterFee') && <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-blue-700">{formatCurrency(amountAfterFee)}</td>}
                                                     {visibleColumns.includes('status') && <td className="px-4 py-3 whitespace-nowrap text-xs">{getStatusBadge(item.status)}</td>}
@@ -493,6 +510,10 @@ const ConsignmentTable: React.FC = () => {
                                 {customerItems.map(item => {
                                     const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
                                     const isSelected = selectedIds.includes(item.id);
+                                    const effectiveQty = (item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED)
+                                        ? (item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity))
+                                        : item.quantity;
+
                                     return (
                                         <div key={item.id} className={`border rounded-xl p-3 shadow-sm ${getStatusRowClass(item.status)} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
                                             <div className="flex justify-between items-start mb-2">
@@ -510,7 +531,7 @@ const ConsignmentTable: React.FC = () => {
                                                             )}
                                                             <p className="font-bold text-gray-800 text-sm truncate pr-2">{item.productName}</p>
                                                         </div>
-                                                        <div className="flex items-center gap-2">{getStatusBadge(item.status)} <span className="text-[10px] text-gray-400">SL: {item.quantity}</span></div>
+                                                        <div className="flex items-center gap-2">{getStatusBadge(item.status)} <span className="text-[10px] text-gray-400">SL: {effectiveQty}</span></div>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-1 shrink-0">

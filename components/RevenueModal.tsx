@@ -226,9 +226,8 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
               const conItemIdx = currentConsignmentData.findIndex(c => c.id === item.consignmentItemId);
               if (conItemIdx !== -1) {
                 currentConsignmentData[conItemIdx].quantity -= item.quantity;
-                if (currentConsignmentData[conItemIdx].quantity <= 0) {
-                  currentConsignmentData[conItemIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
-                }
+                currentConsignmentData[conItemIdx].soldQuantity = (currentConsignmentData[conItemIdx].soldQuantity || 0) + item.quantity;
+                currentConsignmentData[conItemIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
                 consignmentChanged = true;
               }
            }
@@ -257,6 +256,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
            }
            if (oldConIdx !== -1) {
                currentConsignmentData[oldConIdx].quantity += entry.quantity;
+               currentConsignmentData[oldConIdx].soldQuantity = Math.max(0, (currentConsignmentData[oldConIdx].soldQuantity || 0) - entry.quantity);
                if ((currentConsignmentData[oldConIdx].status === ConsignmentStatus.DEPOSITED || currentConsignmentData[oldConIdx].status === ConsignmentStatus.SOLD) && currentConsignmentData[oldConIdx].quantity > 0) {
                    currentConsignmentData[oldConIdx].status = ConsignmentStatus.IN_STOCK;
                }
@@ -279,9 +279,8 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
           const newConIdx = currentConsignmentData.findIndex(c => c.id === newForm.consignmentItemId);
           if (newConIdx !== -1) {
             currentConsignmentData[newConIdx].quantity -= newForm.quantity;
-            if (currentConsignmentData[newConIdx].quantity <= 0) {
-              currentConsignmentData[newConIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
-            }
+            currentConsignmentData[newConIdx].soldQuantity = (currentConsignmentData[newConIdx].soldQuantity || 0) + newForm.quantity;
+            currentConsignmentData[newConIdx].status = commonData.status === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
             consignmentChanged = true;
           }
         }

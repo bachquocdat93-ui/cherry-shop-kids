@@ -191,7 +191,7 @@ const RevenueTable: React.FC = () => {
                         ? consData.findIndex(c => c.id === entry.consignmentItemId)
                         : consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
                     
-                    if (cIdx !== -1 && consData[cIdx].quantity <= 0) {
+                    if (cIdx !== -1) {
                         consData[cIdx].status = newStatus === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
                         window.localStorage.setItem('consignmentData', JSON.stringify(consData));
                         window.dispatchEvent(new Event('storage'));
@@ -226,6 +226,7 @@ const RevenueTable: React.FC = () => {
                         const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
                         if (cIdx !== -1) {
                             consData[cIdx].quantity += entry.quantity;
+                            consData[cIdx].soldQuantity = Math.max(0, (consData[cIdx].soldQuantity || 0) - entry.quantity);
                             if ((consData[cIdx].status === ConsignmentStatus.DEPOSITED || consData[cIdx].status === ConsignmentStatus.SOLD) && consData[cIdx].quantity > 0) {
                                 consData[cIdx].status = ConsignmentStatus.IN_STOCK;
                             }
@@ -286,6 +287,7 @@ const RevenueTable: React.FC = () => {
                         const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
                         if (cIdx !== -1) {
                             consData[cIdx].quantity += entry.quantity;
+                            consData[cIdx].soldQuantity = Math.max(0, (consData[cIdx].soldQuantity || 0) - entry.quantity);
                             if ((consData[cIdx].status === ConsignmentStatus.DEPOSITED || consData[cIdx].status === ConsignmentStatus.SOLD) && consData[cIdx].quantity > 0) {
                                 consData[cIdx].status = ConsignmentStatus.IN_STOCK;
                             }
@@ -349,6 +351,7 @@ const RevenueTable: React.FC = () => {
                             const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
                             if (cIdx !== -1) {
                                 consData[cIdx].quantity += entry.quantity;
+                                consData[cIdx].soldQuantity = Math.max(0, (consData[cIdx].soldQuantity || 0) - entry.quantity);
                                 if ((consData[cIdx].status === ConsignmentStatus.DEPOSITED || consData[cIdx].status === ConsignmentStatus.SOLD) && consData[cIdx].quantity > 0) {
                                     consData[cIdx].status = ConsignmentStatus.IN_STOCK;
                                 }
@@ -370,7 +373,7 @@ const RevenueTable: React.FC = () => {
                         const cIdx = entry.consignmentItemId
                             ? consData.findIndex(c => c.id === entry.consignmentItemId)
                             : consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
-                        if (cIdx !== -1 && consData[cIdx].quantity <= 0) {
+                        if (cIdx !== -1) {
                             consData[cIdx].status = newStatus === RevenueStatus.DELIVERED ? ConsignmentStatus.SOLD : ConsignmentStatus.DEPOSITED;
                             consChanged = true;
                         }
@@ -494,6 +497,7 @@ const RevenueTable: React.FC = () => {
                         const cIdx = consData.findIndex(c => c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.retailPrice);
                         if (cIdx !== -1) {
                             consData[cIdx].quantity += entry.quantity;
+                            consData[cIdx].soldQuantity = Math.max(0, (consData[cIdx].soldQuantity || 0) - entry.quantity);
                             if ((consData[cIdx].status === ConsignmentStatus.DEPOSITED || consData[cIdx].status === ConsignmentStatus.SOLD) && consData[cIdx].quantity > 0) {
                                 consData[cIdx].status = ConsignmentStatus.IN_STOCK;
                             }
