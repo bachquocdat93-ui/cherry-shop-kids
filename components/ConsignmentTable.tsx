@@ -239,11 +239,11 @@ const ConsignmentTable: React.FC = () => {
             return item.quantity;
         };
 
-        const totalItems = customerItems.reduce((sum, item) => sum + item.quantity + (item.soldQuantity || ((item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED) && item.quantity === 0 ? 1 : 0)), 0);
         const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD).reduce((sum, item) => sum + getEffectiveQty(item), 0);
         const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED).reduce((sum, item) => sum + getEffectiveQty(item), 0);
         const returnedItems = customerItems.filter(i => i.status === ConsignmentStatus.RETURNED).reduce((sum, item) => sum + item.quantity, 0);
         const inStockItems = customerItems.filter(i => i.status === ConsignmentStatus.IN_STOCK).reduce((sum, item) => sum + item.quantity, 0);
+        const totalItems = soldItems + depositedItems + returnedItems + inStockItems;
         
         const totalTransferAmount = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
             .reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * getEffectiveQty(item), 0);
