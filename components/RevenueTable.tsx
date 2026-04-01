@@ -74,6 +74,8 @@ const RevenueTable: React.FC = () => {
             } else if (action === 'update' || action === 'remove') {
                 // First, find and remove the item from wherever it is (based on revenueEntryId or legacy fallback)
                 let itemToMove: InvoiceItem | null = null;
+                let sourceInvoiceDeposit = 0;
+                let sourceInvoiceId = '';
 
                 invoices = invoices.map(invoice => {
                     const originalLen = invoice.items.length;
@@ -92,13 +94,19 @@ const RevenueTable: React.FC = () => {
                                 consignmentItemId: entry.consignmentItemId,
                                 revenueEntryId: entry.id // Ensure ID is linked
                             };
+                            sourceInvoiceDeposit = invoice.deposit || 0;
+                            sourceInvoiceId = invoice.id;
                         }
                         return !isMatch;
                     });
 
                     if (remainingItems.length !== originalLen) changed = true;
                     return { ...invoice, items: remainingItems };
-                }).filter(inv => inv.items.length > 0);
+                });
+
+                if (action === 'remove') {
+                    invoices = invoices.filter(inv => inv.items.length > 0);
+                }
 
                 // If it was an update, add it back to the CORRECT target invoice (handles customer name changes)
                 if (action === 'update') {
@@ -121,12 +129,13 @@ const RevenueTable: React.FC = () => {
                         invoices[targetInvoiceIdx].items.push(itemToInsert);
                     } else {
                         invoices.push({
-                            id: generateUniqueId(),
+                            id: sourceInvoiceId || generateUniqueId(),
                             customerName: entry.customerName || 'Khách lẻ',
                             items: [itemToInsert],
-                            deposit: 0,
+                            deposit: sourceInvoiceDeposit,
                         });
                     }
+                    invoices = invoices.filter(inv => inv.items.length > 0);
                     changed = true;
                 }
             }

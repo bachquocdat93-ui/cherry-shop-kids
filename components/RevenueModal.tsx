@@ -149,7 +149,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
   const handleConsignedProductChange = (productId: string) => {
     const product = consignmentData.find(p => p.id === productId);
     if (product) {
-      const costPrice = product.consignmentPrice * (1 - product.consignmentFee / 100);
+      const costPrice = product.consignmentPrice;
       setProductForm(prev => ({
         ...prev,
         productName: product.productName,
