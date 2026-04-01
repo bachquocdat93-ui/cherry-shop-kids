@@ -35,6 +35,10 @@ const AutoSyncManager: React.FC = () => {
                         localStorage.setItem('shopInventoryData', JSON.stringify(data.inventory));
                         window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'shopInventoryData' } }));
                     }
+                    if (data.customersInfo) {
+                        localStorage.setItem('customersInfoData', JSON.stringify(data.customersInfo));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'customersInfoData' } }));
+                    }
                     setStatus('pulled');
                     setTimeout(() => setStatus('idle'), 3000);
                 } else {
@@ -57,7 +61,7 @@ const AutoSyncManager: React.FC = () => {
             const key = customEvent.detail?.key;
 
             // Only sync if these specific data keys change
-            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData'];
+            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData', 'customersInfoData'];
             if (!key || !watchedKeys.includes(key)) return;
 
             // Check if Cloud is configured
@@ -73,8 +77,9 @@ const AutoSyncManager: React.FC = () => {
                     const invoices = JSON.parse(localStorage.getItem('invoicesData') || '[]');
                     const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
                     const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
+                    const customersInfo = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
 
-                    await pushToCloud({ revenue, invoices, consignment, inventory });
+                    await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo });
 
                     setStatus('saved');
                     setLastSaved(new Date());

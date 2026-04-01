@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { RevenueEntry, Invoice, InvoiceItem, ConsignmentItem } from '../types';
+import type { RevenueEntry, Invoice, InvoiceItem, ConsignmentItem, CustomerInfo } from '../types';
 import { ConsignmentStatus, RevenueStatus } from '../types';
 import { generateUniqueId } from './helpers';
 
@@ -10,6 +10,7 @@ export function exportDataToSheet() {
     const revenueData: RevenueEntry[] = JSON.parse(localStorage.getItem('revenueData') || '[]');
     const invoicesData: Invoice[] = JSON.parse(localStorage.getItem('invoicesData') || '[]');
     const consignmentData: ConsignmentItem[] = JSON.parse(localStorage.getItem('consignmentData') || '[]');
+    const customersInfoData: CustomerInfo[] = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
 
     // 2. Prepare data for sheets
     const revenueSheetData = revenueData.map(item => ({
@@ -50,15 +51,23 @@ export function exportDataToSheet() {
         'Note': item.note,
     }));
 
+    const customerSheetData = customersInfoData.map(item => ({
+        'Tên Khách Hàng': item.name,
+        'Số Điện Thoại': item.phone || '',
+        'Địa Chỉ': item.address || '',
+    }));
+
     // 3. Create workbook and worksheets
     const wb = XLSX.utils.book_new();
     const wsRevenue = XLSX.utils.json_to_sheet(revenueSheetData);
     const wsInvoices = XLSX.utils.json_to_sheet(invoicesSheetData);
     const wsConsignment = XLSX.utils.json_to_sheet(consignmentSheetData);
+    const wsCustomers = XLSX.utils.json_to_sheet(customerSheetData);
 
     XLSX.utils.book_append_sheet(wb, wsRevenue, 'DoanhThu');
     XLSX.utils.book_append_sheet(wb, wsInvoices, 'HoaDon');
     XLSX.utils.book_append_sheet(wb, wsConsignment, 'KyGui');
+    XLSX.utils.book_append_sheet(wb, wsCustomers, 'KhachHang');
 
     // 4. Record backup time
     const now = new Date().toISOString();
@@ -76,6 +85,7 @@ export async function importDataFromSheet(file: File): Promise<{
     revenueData: RevenueEntry[];
     invoicesData: Invoice[];
     consignmentData: ConsignmentItem[];
+    customersInfoData: CustomerInfo[];
 }> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -174,7 +184,19 @@ export async function importDataFromSheet(file: File): Promise<{
                     };
                 });
                 
-                resolve({ revenueData, invoicesData, consignmentData });
+                // Process Customers
+                let customersInfoData: CustomerInfo[] = [];
+                if (workbook.SheetNames.includes('KhachHang')) {
+                    const customersSheet = workbook.Sheets['KhachHang'];
+                    const rawCustomers = XLSX.utils.sheet_to_json(customersSheet) as any[];
+                    customersInfoData = rawCustomers.map(row => ({
+                        name: String(row['Tên Khách Hàng']),
+                        phone: String(row['Số Điện Thoại'] || ''),
+                        address: String(row['Địa Chỉ'] || ''),
+                    }));
+                }
+
+                resolve({ revenueData, invoicesData, consignmentData, customersInfoData });
 
             } catch (error) {
                 reject(error);
@@ -219,6 +241,13 @@ export function generateSyncTemplate() {
         { 'ID': 'con_1688888888888-mnopqr', 'Tên Khách Hàng': 'Lê Văn C', 'Tên Sản Phẩm': 'Túi Da', 'Giá Gửi Bán': 500000, 'Số Lượng': 1, 'Phí ký gửi (%)': 20, 'Trạng Thái': 'Còn hàng', 'Note': 'Hàng mới' }
     ]);
      XLSX.utils.book_append_sheet(wb, wsConsignment, 'KyGui');
+
+    // KhachHang Sheet
+    const wsCustomers = XLSX.utils.json_to_sheet([
+        { 'Tên Khách Hàng': 'Nguyễn Văn A', 'Số Điện Thoại': '0901234567', 'Địa Chỉ': '123 Đường B, Quận C' },
+        { 'Tên Khách Hàng': 'Trần Thị B', 'Số Điện Thoại': '0987654321', 'Địa Chỉ': '456 Đường X, Quận Y' }
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsCustomers, 'KhachHang');
 
     XLSX.writeFile(wb, 'CherryShop_Backup_Mau.xlsx');
 }

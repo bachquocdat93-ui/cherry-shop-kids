@@ -16,7 +16,12 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
       const valueToStore = value instanceof Function ? value(currentValue) : value;
       try {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
-        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key } }));
+        
+        // Notify other components (using setTimeout to prevent React strict-mode/synchronous recursive state updates)
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key } }));
+        }, 0);
+        
         return valueToStore;
       } catch (error) {
         console.error("useLocalStorage Error:", error);
@@ -25,7 +30,7 @@ function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<R
         } else {
           alert('Lỗi lưu trữ dữ liệu!');
         }
-        return currentValue; // Return previous value on failure to prevent stale UI state or crash
+        return currentValue;
       }
     });
   };

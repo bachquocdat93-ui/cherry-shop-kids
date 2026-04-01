@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CloseIcon, UploadIcon, TrashIcon, SyncIcon, CheckCircleIcon } from './Icons';
 import { exportDataToSheet, importDataFromSheet, generateSyncTemplate } from '../utils/sheetSync';
 import { getCloudConfig, saveCloudConfig, pushToCloud, pullFromCloud, SQL_INSTRUCTIONS, resetSupabaseClient } from '../utils/supabaseService';
-import type { RevenueEntry, Invoice, ConsignmentItem } from '../types';
+import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo } from '../types';
 
 interface SheetSyncModalProps {
   onClose: () => void;
@@ -10,6 +10,8 @@ interface SheetSyncModalProps {
     revenueData: RevenueEntry[];
     invoicesData: Invoice[];
     consignmentData: ConsignmentItem[];
+    shopInventoryData?: ShopItem[];
+    customersInfoData?: CustomerInfo[];
   }) => void;
 }
 
@@ -63,8 +65,9 @@ const SheetSyncModal: React.FC<SheetSyncModalProps> = ({ onClose, onImportSucces
       const invoices = JSON.parse(localStorage.getItem('invoicesData') || '[]');
       const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
       const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
+      const customersInfo = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
 
-      await pushToCloud({ revenue, invoices, consignment, inventory });
+      await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo });
       alert('Đã đồng bộ lên Cloud thành công!');
     } catch (err: any) {
       setError('Lỗi Cloud: ' + err.message);
@@ -83,7 +86,8 @@ const SheetSyncModal: React.FC<SheetSyncModalProps> = ({ onClose, onImportSucces
         revenueData: data.revenue,
         invoicesData: data.invoices,
         consignmentData: data.consignment,
-        shopInventoryData: data.inventory
+        shopInventoryData: data.inventory,
+        customersInfoData: data.customersInfo
       });
       // FIX: Add curly braces to the catch block to fix syntax error.
     } catch (err: any) {

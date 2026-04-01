@@ -9,7 +9,7 @@ import ReportsPage from './components/ReportsPage';
 import CustomersPage from './components/CustomersPage';
 import SheetSyncModal from './components/SheetSyncModal';
 import AutoSyncManager from './components/AutoSyncManager';
-import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem } from './types';
+import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo } from './types';
 import type { Page } from './types';
 
 const App: React.FC = () => {
@@ -42,6 +42,7 @@ const App: React.FC = () => {
     invoicesData: Invoice[];
     consignmentData: ConsignmentItem[];
     shopInventoryData?: ShopItem[];
+    customersInfoData?: CustomerInfo[];
   }) => {
     // Overwrite all data in local storage
     window.localStorage.setItem('revenueData', JSON.stringify(data.revenueData));
@@ -49,6 +50,9 @@ const App: React.FC = () => {
     window.localStorage.setItem('consignmentData', JSON.stringify(data.consignmentData));
     if (data.shopInventoryData) {
       window.localStorage.setItem('shopInventoryData', JSON.stringify(data.shopInventoryData));
+    }
+    if (data.customersInfoData) {
+      window.localStorage.setItem('customersInfoData', JSON.stringify(data.customersInfoData));
     }
 
     // Close modal and reload to reflect changes everywhere
