@@ -2,13 +2,15 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import type { Invoice, InvoiceItem, RevenueEntry, ShopItem, ConsignmentItem } from '../types';
 import { RevenueStatus, ConsignmentStatus } from '../types';
-import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon, CameraIcon } from './Icons';
+import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon, CameraIcon, SplitIcon } from './Icons';
 import InvoiceModal from './InvoiceModal';
+import SplitInvoiceModal from './SplitInvoiceModal';
 import html2canvas from 'html2canvas';
 import ImportModal from './ImportModal';
 import { transformToInvoiceData } from '../utils/importer';
 import { generateInvoicesTemplate } from '../utils/templateGenerator';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateUniqueId } from '../utils/helpers';
 
 const initialData: Invoice[] = [];
 
@@ -23,6 +25,9 @@ const InvoicesTable = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
+    const [splittingInvoice, setSplittingInvoice] = useState<Invoice | null>(null);
 
     const receiptRef = useRef<HTMLDivElement>(null);
     const [exportingInvoice, setExportingInvoice] = useState<Invoice | null>(null);
@@ -56,6 +61,82 @@ const InvoicesTable = () => {
             setInvoices(prev => [...prev, invoice]);
         }
         handleCloseModal();
+    };
+
+    const handleOpenSplitModal = (invoice: Invoice) => {
+        // Quick check
+        const totalItemsCount = invoice.items.reduce((s, i) => s + i.quantity, 0);
+        if (totalItemsCount <= 1) {
+            alert("Hóa đơn chỉ có 1 sản phẩm duy nhất, không thể tách thêm được!");
+            return;
+        }
+        setSplittingInvoice(invoice);
+        setIsSplitModalOpen(true);
+    };
+
+    const handleCloseSplitModal = () => {
+        setIsSplitModalOpen(false);
+        setSplittingInvoice(null);
+    };
+
+    const handleSplitSave = (updatedOriginal: Invoice, newInvoice: Invoice) => {
+        let revenueUpdated = false;
+        const revenueDataRaw = window.localStorage.getItem('revenueData');
+        let revenueEntries: RevenueEntry[] = revenueDataRaw ? JSON.parse(revenueDataRaw) : [];
+
+        newInvoice.items.forEach((item, index) => {
+            if (item.revenueEntryId) {
+                const revIdx = revenueEntries.findIndex(re => re.id === item.revenueEntryId);
+                if (revIdx !== -1) {
+                    const origRev = revenueEntries[revIdx];
+                    
+                    // Did reducing the quantity mean we split it, or moved it completely?
+                    const origStillHasIt = updatedOriginal.items.some(oi => oi.revenueEntryId === item.revenueEntryId);
+
+                    if (origStillHasIt) {
+                        // The item was partially split (Quantity > 1). Create a discrete RevenueEntry!
+                        const newRevId = generateUniqueId();
+                        newInvoice.items[index].revenueEntryId = newRevId; // Hook new ID
+                        
+                        const splitRevEntry: RevenueEntry = {
+                            ...origRev,
+                            id: newRevId,
+                            customerName: newInvoice.customerName,
+                            quantity: item.quantity
+                        };
+                        revenueEntries.push(splitRevEntry);
+                        
+                        origRev.quantity -= item.quantity;
+                        revenueUpdated = true;
+                    } else {
+                        // The entire item was moved to the new invoice. Just rename its customer.
+                        origRev.customerName = newInvoice.customerName;
+                        revenueUpdated = true;
+                    }
+                }
+            }
+        });
+
+        if (revenueUpdated) {
+            window.localStorage.setItem('revenueData', JSON.stringify(revenueEntries));
+        }
+
+        setInvoices(prev => {
+            const result = [...prev];
+            const origIdx = result.findIndex(i => i.id === updatedOriginal.id);
+            if (origIdx !== -1) {
+                result[origIdx] = updatedOriginal;
+            }
+            result.push(newInvoice);
+            return result;
+        });
+
+        if (revenueUpdated) {
+            setTimeout(() => window.dispatchEvent(new Event('storage')), 100);
+        }
+
+        handleCloseSplitModal();
+        alert("Đã tách phần sản phẩm được chọn sang 1 Hóa Đơn mới!");
     };
 
     const handleDelete = (id: string) => {
@@ -216,15 +297,47 @@ const InvoicesTable = () => {
                         }
 
                         // Sync back to Revenue
-                        if (item.revenueEntryId) {
-                            const revIdx = revenueEntries.findIndex(re => re.id === item.revenueEntryId);
+                        let currentRevenueEntryId = item.revenueEntryId;
+                        if (currentRevenueEntryId) {
+                            const revIdx = revenueEntries.findIndex(re => re.id === currentRevenueEntryId);
                             if (revIdx !== -1) {
                                 revenueEntries[revIdx].status = newStatus;
                                 revenueChanged = true;
                             }
+                        } else if (newStatus === RevenueStatus.SHIPPING || newStatus === RevenueStatus.DELIVERED) {
+                            let costPrice = 0;
+                            let consignor = '';
+                            
+                            if (item.shopItemId) {
+                                const shopIdx = shopData.findIndex(s => s.id === item.shopItemId);
+                                if (shopIdx !== -1) costPrice = shopData[shopIdx].importPrice;
+                            } else if (item.consignmentItemId) {
+                                const conIdx = consData.findIndex(c => c.id === item.consignmentItemId);
+                                if (conIdx !== -1) {
+                                    costPrice = consData[conIdx].consignmentPrice;
+                                    consignor = consData[conIdx].customerName;
+                                }
+                            }
+
+                            currentRevenueEntryId = generateUniqueId();
+                            const newRevEntry: RevenueEntry = {
+                                id: currentRevenueEntryId,
+                                date: new Date().toISOString().slice(0, 10),
+                                customerName: invoice.customerName,
+                                productName: item.productName,
+                                costPrice: costPrice,
+                                retailPrice: item.sellingPrice,
+                                quantity: item.quantity,
+                                status: newStatus,
+                                shopItemId: item.shopItemId,
+                                consignmentItemId: item.consignmentItemId,
+                                consignor: consignor || undefined
+                            };
+                            revenueEntries.push(newRevEntry);
+                            revenueChanged = true;
                         }
 
-                        return { ...item, status: newStatus };
+                        return { ...item, status: newStatus, revenueEntryId: currentRevenueEntryId };
                     });
 
                     updatedInvoices[invIdx] = { ...invoice, items: updatedItems };
@@ -495,6 +608,13 @@ const InvoicesTable = () => {
                                     {canModify && (
                                         <>
                                             <button
+                                                onClick={() => handleOpenSplitModal(invoice)}
+                                                className="p-1.5 text-blue-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-blue-100"
+                                                title="Tách Hóa Đơn"
+                                            >
+                                                <SplitIcon />
+                                            </button>
+                                            <button
                                                 onClick={() => handleOpenModal(invoice)}
                                                 className="p-1.5 text-primary-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-primary-100"
                                                 title="Sửa hóa đơn"
@@ -558,6 +678,7 @@ const InvoicesTable = () => {
             </div>
 
             {isModalOpen && <InvoiceModal invoice={editingInvoice} onSave={handleSave} onClose={handleCloseModal} />}
+            {isSplitModalOpen && splittingInvoice && <SplitInvoiceModal invoice={splittingInvoice} onSave={handleSplitSave} onClose={handleCloseSplitModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={async (f) => { const d = await transformToInvoiceData(f); setInvoices(prev => [...prev, ...d]); }} title="Nhập hóa đơn" instructions={<p>Tên khách hàng trùng nhau sẽ được gộp.</p>} onDownloadTemplate={generateInvoicesTemplate} />}
             
             {/* Hidden Receipt Template for Image Export */}
