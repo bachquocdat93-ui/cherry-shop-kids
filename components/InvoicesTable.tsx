@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import type { Invoice, InvoiceItem, RevenueEntry, ShopItem, ConsignmentItem } from '../types';
 import { RevenueStatus, ConsignmentStatus } from '../types';
-import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon } from './Icons';
+import { EditIcon, TrashIcon, PdfIcon, TrashIcon as ClearIcon, CameraIcon } from './Icons';
 import InvoiceModal from './InvoiceModal';
+import html2canvas from 'html2canvas';
 import ImportModal from './ImportModal';
 import { transformToInvoiceData } from '../utils/importer';
 import { generateInvoicesTemplate } from '../utils/templateGenerator';
@@ -23,7 +24,8 @@ const InvoicesTable = () => {
     const [endDate, setEndDate] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    // State and ref for image export - REMOVED
+    const receiptRef = useRef<HTMLDivElement>(null);
+    const [exportingInvoice, setExportingInvoice] = useState<Invoice | null>(null);
 
     useEffect(() => {
         const handleStorageChange = () => {
@@ -309,6 +311,44 @@ const InvoicesTable = () => {
         generateInvoicePDF(invoice);
     };
 
+    const handleExportInvoiceImage = async (invoice: Invoice) => {
+        setExportingInvoice(invoice);
+        // Wait for React to render the hidden DOM element
+        setTimeout(async () => {
+            if (receiptRef.current) {
+                try {
+                    const canvas = await html2canvas(receiptRef.current, { scale: 3, useCORS: true, backgroundColor: null });
+                    canvas.toBlob(blob => {
+                        if (blob) {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `Bill_${invoice.customerName.replace(/\s+/g, '_')}.png`;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            
+                            // Try copying to clipboard for quick paste to Zalo
+                            try {
+                                const item = new (window as any).ClipboardItem({ "image/png": blob });
+                                navigator.clipboard.write([item]).then(() => {
+                                    alert('Đã Tải Ảnh hóa đơn và Copy Ảnh!\nBạn có thể nhấn Ctrl+V (Dán) thẳng vào đoạn Chat Zalo để gửi ngay.');
+                                }).catch(() => {
+                                    alert('Đã tải Ảnh hóa đơn thành công! (Không dán tự động được, bạn gửi file ảnh nhé)');
+                                });
+                            } catch (e) {
+                                alert('Đã tải Ảnh hóa đơn thành công! Hãy mở thư mục Tải xuống để gửi cho khách.');
+                            }
+                        }
+                    }, 'image/png');
+                } catch (err) {
+                    console.error("Lỗi xuất ảnh:", err);
+                    alert("Không thể tạo ảnh hóa đơn.");
+                }
+                setExportingInvoice(null);
+            }
+        }, 500); // 500ms allows the DOM to comfortably mount
+    };
+
     const getTabColor = (status: RevenueStatus) => {
         switch (status) {
             case RevenueStatus.HOLDING: return 'border-primary text-primary';
@@ -444,6 +484,13 @@ const InvoicesTable = () => {
                                     >
                                         <PdfIcon />
                                     </button>
+                                    <button
+                                        onClick={() => handleExportInvoiceImage(invoice)}
+                                        className="p-1.5 text-purple-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-purple-100"
+                                        title="Lưu Ảnh Hóa Đơn (Gửi Zalo)"
+                                    >
+                                        <CameraIcon />
+                                    </button>
 
                                     {canModify && (
                                         <>
@@ -512,6 +559,69 @@ const InvoicesTable = () => {
 
             {isModalOpen && <InvoiceModal invoice={editingInvoice} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={async (f) => { const d = await transformToInvoiceData(f); setInvoices(prev => [...prev, ...d]); }} title="Nhập hóa đơn" instructions={<p>Tên khách hàng trùng nhau sẽ được gộp.</p>} onDownloadTemplate={generateInvoicesTemplate} />}
+            
+            {/* Hidden Receipt Template for Image Export */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }}>
+                {exportingInvoice && (
+                    <div ref={receiptRef} className="w-[480px] bg-white p-8 relative font-sans text-gray-800 shadow-2xl rounded-2xl overflow-hidden" style={{ backgroundImage: "linear-gradient(to bottom, #fdf2f8, #ffffff)" }}>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50 -ml-10 -mb-10"></div>
+                        
+                        <div className="text-center mb-8 border-b-2 border-dashed border-primary-200 pb-6 relative z-10">
+                            <div className="mx-auto w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mb-3">
+                                🍒
+                            </div>
+                            <h1 className="text-3xl font-black text-primary-600 mb-2 tracking-tighter">CHERRY SHOP KIDS</h1>
+                            <p className="text-xs text-gray-500 uppercase tracking-widest font-black bg-white inline-block px-3 py-1 rounded-full border border-gray-100 shadow-sm">Phiếu Thanh Toán</p>
+                        </div>
+                        
+                        <div className="mb-8 space-y-2 text-sm bg-white/60 p-4 rounded-xl border border-gray-50 relative z-10">
+                            <p className="flex justify-between"><span className="text-gray-500">Khách hàng:</span> <span className="font-black text-gray-900 text-lg uppercase">{exportingInvoice.customerName}</span></p>
+                            <p className="flex justify-between"><span className="text-gray-500">Ngày xuất:</span> <span className="font-bold text-gray-800">{new Date().toLocaleDateString('vi-VN')}</span></p>
+                        </div>
+
+                        <div className="space-y-4 mb-8 relative z-10">
+                            {exportingInvoice.items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-start">
+                                    <div className="flex-1 pr-6 border-b border-gray-100 pb-2">
+                                        <p className="font-bold text-gray-800 leading-snug">{item.productName}</p>
+                                        <p className="text-xs text-gray-500 mt-1">{item.quantity} x {formatCurrency(item.sellingPrice)}</p>
+                                    </div>
+                                    <p className="font-black text-gray-900 shrink-0 text-base border-b border-gray-100 pb-2">{formatCurrency(item.quantity * item.sellingPrice)}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="border-t-[3px] border-solid border-gray-100 pt-6 space-y-3 relative z-10">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-500 font-bold uppercase">Tổng tiền:</span>
+                                <span className="font-black text-gray-900 text-lg">{formatCurrency(exportingInvoice.items.reduce((s,i) => s + i.sellingPrice*i.quantity, 0))}</span>
+                            </div>
+                            {exportingInvoice.deposit > 0 && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-500 font-bold uppercase">Đã cọc/Trả:</span>
+                                    <span className="font-black text-green-600 text-lg">- {formatCurrency(exportingInvoice.deposit)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center bg-primary-50 p-4 rounded-2xl mt-4 border border-primary-100 shadow-sm">
+                                <span className="text-sm font-black text-primary-700 uppercase">Còn Lại:</span>
+                                <span className="text-2xl font-black text-red-600">
+                                    {formatCurrency(Math.max(0, exportingInvoice.items.reduce((s,i) => s + i.sellingPrice*i.quantity, 0) - exportingInvoice.deposit))}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 space-y-1.5 relative z-10 bg-red-50/80 p-4 rounded-xl border border-red-100 text-[9px] text-red-600 leading-relaxed font-bold">
+                            <p className="font-black text-xs mb-1 uppercase tracking-widest text-red-700">Lưu ý:</p>
+                            <p>- GIÁ PHÍA TRÊN CHƯA BAO GỒM PHÍ SHIP, PHÍ SHIP TÍNH SAU KHI LÊN ĐƠN.</p>
+                            <p>- QUÝ KHÁCH VUI LÒNG QUAY VIDEO KHI BÓC HÀNG. SHOP CHỈ GIẢI QUYẾT KHI CÓ VIDEO, XIN CẢM ƠN.</p>
+                        </div>
+                        
+                        {/* Decorative top/bottom bars */}
+                        <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-primary-400 via-purple-400 to-primary-400"></div>
+                    </div>
+                )}
+            </div>
         </div >
     );
 };
