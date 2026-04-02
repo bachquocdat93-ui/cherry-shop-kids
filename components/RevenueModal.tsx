@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem, ConsignmentStatus } from '../types';
-import { CloseIcon, TrashIcon } from './Icons';
+import { CloseIcon, TrashIcon, PlusIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 import useLocalStorage from '../hooks/useLocalStorage';
 
@@ -322,28 +322,29 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-full overflow-y-auto">
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{entry ? 'Sửa thông tin bán hàng' : 'Ghi nhận đơn hàng mới'}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <CloseIcon />
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex justify-center items-center p-4 sm:p-6 transition-all duration-300">
+      <div className="bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] w-full max-w-lg max-h-full overflow-y-auto ring-1 ring-slate-100 animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 sm:p-8">
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">{entry ? 'Sửa Đơn Cũ' : 'Ghi Mới Đơn Hàng'}</h3>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 rounded-full transition-all">
+              <CloseIcon className="w-4 h-4"/>
             </button>
           </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl shadow-inner mb-6 border border-gray-100">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-blue-500"></div>
                 <div className="col-span-2">
-                  <label htmlFor="customerName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên khách hàng</label>
-                  <input type="text" id="customerName" name="customerName" value={commonData.customerName} onChange={handleCommonChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                  <label htmlFor="customerName" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tên khách hàng</label>
+                  <input type="text" id="customerName" name="customerName" value={commonData.customerName} onChange={handleCommonChange} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold bg-white py-2.5 px-3 transition-all placeholder:text-slate-300" placeholder="Nguyễn Văn B..." />
                 </div>
                 <div>
-                  <label htmlFor="date" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ngày bán <span className="text-red-500">*</span></label>
-                  <input type="date" id="date" name="date" value={commonData.date} onChange={handleCommonChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                  <label htmlFor="date" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Ngày bán <span className="text-red-500">*</span></label>
+                  <input type="date" id="date" name="date" value={commonData.date} onChange={handleCommonChange} required className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold bg-white py-2.5 px-3 transition-all text-slate-700" />
                 </div>
                 <div>
-                  <label htmlFor="status" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Trạng Thái</label>
-                  <select id="status" name="status" value={commonData.status} onChange={handleCommonChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-bold bg-white">
+                  <label htmlFor="status" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Trạng Thái</label>
+                  <select id="status" name="status" value={commonData.status} onChange={handleCommonChange} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold bg-white py-2.5 px-3 transition-all text-blue-700 cursor-pointer">
                     <option value={RevenueStatus.HOLDING}>Dồn đơn</option>
                     <option value={RevenueStatus.SHIPPING}>Đang đi đơn</option>
                     <option value={RevenueStatus.DELIVERED}>Đã giao hàng</option>
@@ -352,42 +353,43 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
             </div>
 
             {addedItems.length > 0 && !entry && (
-               <div className="mb-4 space-y-2">
-                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Đã thêm ({addedItems.length} sản phẩm)</label>
+               <div className="space-y-3 relative before:absolute before:inset-y-0 before:-left-3 before:w-px before:bg-slate-200 mx-3">
+                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest bg-white inline-block px-2 -ml-2 text-primary-600 relative z-10 rounded-full border border-primary/20 shadow-sm">Đã thêm ({addedItems.length})</label>
                  {addedItems.map((item, index) => (
-                    <div key={item.id} className="flex justify-between items-center bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                      <div>
-                        <p className="text-xs font-bold text-gray-800">{index + 1}. {item.productName}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{item.quantity} x {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.retailPrice)}</p>
+                    <div key={item.id} className="flex justify-between items-center group bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all relative overflow-hidden ml-3">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-slate-200 group-hover:bg-blue-500 transition-colors"></div>
+                      <div className="pl-2">
+                        <p className="text-xs font-black text-slate-800">{index + 1}. {item.productName}</p>
+                        <p className="text-[11px] font-bold text-slate-500 mt-1">{item.quantity} x <span className="text-blue-600">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.retailPrice)}</span></p>
                       </div>
-                      <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 p-1.5 bg-white hover:bg-red-50 rounded-lg shadow-sm border border-red-100 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-400 p-2 bg-slate-50 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"><TrashIcon className="w-4 h-4" /></button>
                     </div>
                  ))}
                </div>
             )}
 
-            <div className="p-4 border border-gray-100 rounded-xl relative">
+            <div className="p-5 border border-slate-200 bg-white rounded-2xl relative shadow-sm hover:shadow-md transition-all">
                 {addedItems.length > 0 && !entry && (
-                  <span className="absolute -top-2 left-4 bg-white px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sản phẩm tiếp theo</span>
+                  <span className="absolute -top-3 left-5 bg-gradient-to-r from-primary to-blue-500 text-white px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">SP Tiếp Theo</span>
                 )}
-                <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nguồn hàng</label>
-                      <div className="flex space-x-2">
-                        <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'manual' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Nhập tay</button>
-                        <button type="button" onClick={() => handleSourceChange('shop')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'shop' ? 'bg-primary text-white border-primary shadow-md shadow-primary/20' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Kho Shop</button>
-                        <button type="button" onClick={() => handleSourceChange('consignor')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg border ${productForm.source === 'consignor' ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>Ký Gửi</button>
+                <div className="space-y-5">
+                    <div className="pb-2 border-b border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5">Nguồn Hàng</label>
+                      <div className="flex space-x-2 bg-slate-100/50 p-1 rounded-xl">
+                        <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${productForm.source === 'manual' ? 'bg-white text-slate-800 shadow-sm border-0' : 'bg-transparent text-slate-500 border-0 hover:text-slate-700'}`}>Nhập tay</button>
+                        <button type="button" onClick={() => handleSourceChange('shop')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${productForm.source === 'shop' ? 'bg-primary text-white shadow-md shadow-primary/30 border-0' : 'bg-transparent text-slate-500 border-0 hover:text-slate-700'}`}>Kho Shop</button>
+                        <button type="button" onClick={() => handleSourceChange('consignor')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${productForm.source === 'consignor' ? 'bg-purple-500 text-white shadow-md shadow-purple-500/30 border-0' : 'bg-transparent text-slate-500 border-0 hover:text-slate-700'}`}>Hàng Ký Gửi</button>
                       </div>
                     </div>
 
                     {productForm.source === 'shop' && (
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Chọn sản phẩm trong kho</label>
-                        <select value={productForm.shopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
-                          <option value="">-- Chọn sản phẩm --</option>
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 text-primary">Chọn sản phẩm trong kho <span className="text-red-500">*</span></label>
+                        <select value={productForm.shopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full rounded-xl border-primary/20 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold bg-primary/5 py-2.5 px-3 transition-all cursor-pointer">
+                          <option value="">-- Click để chọn --</option>
                           {availableShopItems.map(item => (
                             <option key={item.id} value={item.id} disabled={item.remainingQuantity <= 0}>
-                              {item.productName} (SL: {item.remainingQuantity}) {item.remainingQuantity <= 0 ? '- Vừa hết/Đã chọn' : ''}
+                              {item.productName} (Còn: {item.remainingQuantity}) ({new Intl.NumberFormat('vi-VN').format(item.retailPrice)}) {item.remainingQuantity <= 0 ? '- Hết hàng' : ''}
                             </option>
                           ))}
                         </select>
@@ -395,68 +397,82 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                     )}
 
                     {productForm.source === 'consignor' && (
-                      <div>
-                        <label htmlFor="consignor" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Khách ký gửi</label>
-                        <select id="consignor" name="consignor" value={productForm.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium">
-                          <option value="">Chọn khách...</option>
-                          {consignors.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>
+                      <div className="animate-in fade-in slide-in-from-top-2 duration-200 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-purple-50/50 p-3 rounded-xl border border-purple-100">
+                        <div>
+                          <label htmlFor="consignor" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 text-purple-600">Khách gửi <span className="text-red-500">*</span></label>
+                          <select id="consignor" name="consignor" value={productForm.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full rounded-xl border-purple-200 shadow-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-400/10 text-sm font-bold bg-white py-2 px-3 cursor-pointer">
+                            <option value="">-- Chọn khách --</option>
+                            {consignors.map(name => <option key={name} value={name}>{name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="productName" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 text-purple-600">Sản phẩm gửi <span className="text-red-500">*</span></label>
+                          <select 
+                            id="productName" 
+                            name="productName" 
+                            value={productForm.consignmentItemId || ''}
+                            onChange={(e) => handleConsignedProductChange(e.target.value)} 
+                            className="block w-full rounded-xl border-purple-200 shadow-sm focus:border-purple-400 focus:ring-4 focus:ring-purple-400/10 text-sm font-bold bg-white py-2 px-3 cursor-pointer disabled:opacity-50"
+                            disabled={!productForm.consignor}
+                          >
+                            <option value="">-- Chọn sản phẩm --</option>
+                            {availableConsignedProducts.map(p => (
+                              <option key={p.id} value={p.id} disabled={p.remainingQuantity <= 0}>
+                                  {p.productName} (Còn: {p.remainingQuantity}) ({new Intl.NumberFormat('vi-VN').format(p.consignmentPrice)})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     )}
 
-                    <div>
-                      <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm {productForm.source === 'manual' && <span className="text-red-500">*</span>}</label>
-                      {productForm.source === 'consignor' && productForm.consignor ? (
-                        <select 
-                          id="productName" 
-                          name="productName" 
-                          value={productForm.consignmentItemId || ''}
-                          onChange={(e) => handleConsignedProductChange(e.target.value)} 
-                          className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium"
-                        >
-                          <option value="">Chọn sản phẩm...</option>
-                          {availableConsignedProducts.map(p => (
-                            <option key={p.id} value={p.id} disabled={p.remainingQuantity <= 0}>
-                                {p.productName} (SL: {p.remainingQuantity}) {p.remainingQuantity <= 0 ? '- Đã chọn hết' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input type="text" id="productName" name="productName" value={productForm.productName} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" readOnly={productForm.source === 'shop'} placeholder={productForm.source !== 'manual' ? 'Tự động điền...' : 'Váy thiết kế...'} />
-                      )}
-                    </div>
+                    {productForm.source === 'manual' && (
+                       <div>
+                         <label htmlFor="productName" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tên Sản Phẩm <span className="text-red-500">*</span></label>
+                         <input type="text" id="productName" name="productName" value={productForm.productName} onChange={handleProductChange} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold bg-slate-50/30 focus:bg-white py-2.5 px-3 transition-colors" placeholder="Váy thu đông..." />
+                       </div>
+                    )}
+                    
+                    {/* Keep inputs disabled/readonly if not manual */}
+                    {productForm.source !== 'manual' && productForm.source !== 'consignor' && (
+                       <div>
+                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tên Sản Phẩm</label>
+                         <input type="text" value={productForm.productName} readOnly className="block w-full rounded-xl border-slate-100 bg-slate-50 text-sm font-bold text-slate-600 py-2.5 px-3 cursor-not-allowed" placeholder="Tự động điền..." />
+                       </div>
+                    )}
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-1">
-                        <label htmlFor="costPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Nhập</label>
-                        <input type="number" id="costPrice" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                      <div className="col-span-1 hidden sm:block">
+                        <label htmlFor="costPrice" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Giá Nhập</label>
+                        <input type="number" id="costPrice" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold py-2.5 px-3 transition-colors ${productForm.source !== 'manual' ? 'bg-slate-50 text-slate-500 cursor-not-allowed border-slate-100' : 'bg-slate-50/30 focus:bg-white'}`} readOnly={productForm.source !== 'manual'} />
                       </div>
                       <div className="col-span-1">
-                        <label htmlFor="retailPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Bán <span className="text-red-500">*</span></label>
-                        <input type="number" id="retailPrice" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                        <label htmlFor="retailPrice" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Giá Bán <span className="text-red-500">*</span></label>
+                        <input type="number" id="retailPrice" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold py-2.5 px-3 transition-colors text-blue-700 ${productForm.source !== 'manual' ? 'bg-slate-50 cursor-not-allowed border-slate-100' : 'bg-slate-50/30 focus:bg-white'}`} readOnly={productForm.source !== 'manual'} />
                       </div>
                       <div className="col-span-1">
-                          <label htmlFor="quantity" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">SL <span className="text-red-500">*</span></label>
-                          <input type="number" id="quantity" name="quantity" value={productForm.quantity} onChange={handleProductChange} required className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium font-bold text-center" />
+                          <label htmlFor="quantity" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">SL <span className="text-red-500">*</span></label>
+                          <input type="number" id="quantity" name="quantity" value={productForm.quantity} onChange={handleProductChange} required min="1" className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-black text-center bg-slate-50/30 focus:bg-white py-2.5 px-3 transition-colors text-primary" />
                       </div>
                     </div>
 
                     <div>
-                      <label htmlFor="note" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ghi chú SP</label>
-                      <input type="text" id="note" name="note" value={productForm.note} onChange={handleProductChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-xs font-medium" placeholder="Màu sắc, kích cỡ..." />
+                      <label htmlFor="note" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Ghi chú thêm</label>
+                      <input type="text" id="note" name="note" value={productForm.note} onChange={handleProductChange} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-medium bg-slate-50/30 focus:bg-white py-2.5 px-3 transition-colors" placeholder="Size, màu sắc..." />
                     </div>
                 </div>
             </div>
 
             {!entry && (
-               <button type="button" onClick={handleAddToList} className="mt-2 w-full py-2.5 border-2 border-dashed border-primary/30 text-primary-600 bg-primary-50 font-black text-xs uppercase tracking-tight rounded-xl hover:bg-primary-100 transition-colors flex items-center justify-center gap-2">
-                  <span>+</span> Thêm 1 sản phẩm nữa vào đơn
+               <button type="button" onClick={handleAddToList} className="mt-4 w-full py-3 border-2 border-dashed border-primary/40 text-primary-600 bg-primary-50/50 hover:bg-primary-50 transition-all font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:shadow-inner group">
+                  <span className="bg-primary/10 p-1 rounded-md group-hover:bg-primary group-hover:text-white transition-colors"><PlusIcon className="w-4 h-4" /></span> 
+                  Lưu & Nhập SP Tiếp Theo
                </button>
             )}
 
-            <div className="flex justify-end pt-6 space-x-3 border-t border-gray-100 mt-6">
-              <button type="button" onClick={onClose} className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-bold transition-all text-sm">Đóng</button>
-              <button type="button" onClick={handleSubmit} className="px-8 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 font-black shadow-lg shadow-primary/20 transition-all text-sm uppercase tracking-tight">Lưu Toàn Bộ Đơn</button>
+            <div className="flex justify-end pt-6 space-x-3 border-t border-slate-100 mt-6">
+              <button type="button" onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-slate-900 font-bold transition-all text-sm shadow-sm">Thoát</button>
+              <button type="button" onClick={handleSubmit} className="px-8 py-3 bg-gradient-to-r from-primary to-blue-600 hover:from-primary-600 hover:to-blue-700 text-white rounded-xl font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all text-sm uppercase tracking-tight transform hover:-translate-y-0.5">Lưu Toàn Bộ Đơn</button>
             </div>
           </div>
         </div>
