@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ConsignmentItem, ConsignmentStatus, RevenueEntry, RevenueStatus } from '../types';
-import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon, SearchIcon } from './Icons';
+import { PlusIcon, EditIcon, TrashIcon, PdfIcon, UploadIcon, CheckCircleIcon, TrashIcon as ClearIcon, SearchIcon, CameraIcon } from './Icons';
 import ConsignmentModal from './ConsignmentModal';
 import ImportModal from './ImportModal';
 import { transformToConsignmentData } from '../utils/importer';
 import { generateConsignmentTemplate } from '../utils/templateGenerator';
 import { generateConsignmentPDF } from '../utils/pdfGenerator';
 import ColumnToggler from './ColumnToggler';
+import html2canvas from 'html2canvas';
 
 const initialData: ConsignmentItem[] = [];
 const GROUPS_PER_PAGE = 5; // Number of customer groups per page
@@ -39,7 +40,49 @@ const ConsignmentTable: React.FC = () => {
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('consignmentVisibleColumns', CONSIGNMENT_COLUMNS.map(c => c.key));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    // Image export effects removed
+    const receiptRef = useRef<HTMLDivElement>(null);
+    const [exportingConsignor, setExportingConsignor] = useState<{ name: string, items: ConsignmentItem[] } | null>(null);
+
+    useEffect(() => {
+        const handleExportImage = async () => {
+            if (exportingConsignor && receiptRef.current) {
+                try {
+                    const canvas = await html2canvas(receiptRef.current, { backgroundColor: null, scale: 2 });
+                    
+                    canvas.toBlob((blob) => {
+                        if (!blob) return;
+
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = `Bao_Cao_Ky_Gui_${exportingConsignor.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+
+                        try {
+                            const item = new window.ClipboardItem({ 'image/png': blob });
+                            navigator.clipboard.write([item]).then(() => {
+                                alert(`Đã TẢI ẢNH BÁO CÁO KÝ GỬI và COPY SẴN VÀO BỘ NHỚ!\nBây giờ bạn chỉ cần sang Zalo của "${exportingConsignor.name}" và nhấn Ctrl+V (hoặc Paste) để dán ảnh vào khung chat!`);
+                            }).catch(() => {
+                                alert(`Ảnh báo cáo ký gửi của "${exportingConsignor.name}" đã được tải về máy thành công!`);
+                            });
+                        } catch (e) {
+                            alert(`Ảnh báo cáo ký gửi của "${exportingConsignor.name}" đã được tải về máy thành công!`);
+                        }
+                    }, 'image/png');
+                } catch (error) {
+                    console.error("Lỗi xuất ảnh:", error);
+                    alert("Có lỗi xảy ra khi tạo ảnh báo cáo!");
+                } finally {
+                    setExportingConsignor(null);
+                }
+            }
+        };
+
+        if (exportingConsignor) {
+            setTimeout(handleExportImage, 200);
+        }
+    }, [exportingConsignor]);
 
     const groupedItems = useMemo(() => {
         return items.reduce((acc, item) => {
@@ -399,6 +442,13 @@ const ConsignmentTable: React.FC = () => {
                                         <PdfIcon className="w-3.5 h-3.5" />
                                         <span>PDF</span>
                                     </button>
+                                    <button
+                                        onClick={() => setExportingConsignor({ name: customerName, items: customerItems })}
+                                        className="flex-1 sm:flex-none justify-center flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200 px-2 sm:px-3 py-2 rounded-xl hover:bg-purple-100 transition-colors shadow-sm"
+                                    >
+                                        <CameraIcon className="w-3.5 h-3.5" />
+                                        <span>Ảnh</span>
+                                    </button>
                                     {summary.soldItems > 0 && (
                                         <button
                                             onClick={() => handleSettle(customerName, customerItems)}
@@ -609,6 +659,162 @@ const ConsignmentTable: React.FC = () => {
 
             {isModalOpen && <ConsignmentModal item={editingItem} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} title="Nhập dữ liệu Ký gửi" instructions={importInstructions} onDownloadTemplate={generateConsignmentTemplate} />}
+
+            {/* Hidden Receipt Template for Image Export */}
+            {exportingConsignor && (
+                <div style={{ position: 'fixed', top: '-10000px', left: '-10000px', zIndex: -50 }}>
+                    <div ref={receiptRef} className="w-[720px] bg-white p-12 shadow-2xl" id="consignment-export-template" style={{ fontFamily: "Arial, 'Inter', sans-serif" }}>
+                        
+                        {/* Title Section */}
+                        <div className="text-center mb-10">
+                            <h2 className="text-[28px] font-black tracking-wide uppercase" style={{ color: '#ee4d9a', fontFamily: "'Arial Black', sans-serif" }}>CHERRY SHOP KIDS</h2>
+                            <h3 className="text-[20px] font-normal text-gray-800 mt-1 uppercase tracking-wider">BÁO CÁO KÝ GỬI</h3>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="mb-6 space-y-1.5 ml-1">
+                            <div className="flex text-[15px]">
+                                <span className="font-bold text-gray-800" style={{ width: '130px' }}>Khách hàng:</span>
+                                <span className="text-gray-800">{exportingConsignor.name}</span>
+                            </div>
+                            <div className="flex text-[15px]">
+                                <span className="font-bold text-gray-800" style={{ width: '130px' }}>Ngày xuất:</span>
+                                <span className="text-gray-800">{new Date().toLocaleDateString('vi-VN')}</span>
+                            </div>
+                        </div>
+
+                        {/* Master Table */}
+                        <div className="w-full mb-10">
+                            <table className="w-full border-collapse border" style={{ borderColor: '#ee4d9a' }}>
+                                <thead>
+                                    <tr style={{ backgroundColor: '#ee4d9a' }}>
+                                        <th className="p-3 text-white text-[13px] font-medium border" style={{ borderColor: '#ee4d9a', width: '28%' }}>Sản Phẩm</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a' }}>Giá Bán</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a', width: '8%' }}>SL</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a', width: '8%' }}>Phí<br/>%</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a' }}>Thực<br/>nhận/SP</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a', width: '12%' }}>Trạng<br/>Thái</th>
+                                        <th className="p-3 text-white text-[13px] font-medium border text-center" style={{ borderColor: '#ee4d9a', width: '15%' }}>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {exportingConsignor.items.map((item, idx) => {
+                                        const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                        const isSoldOrCĐ = item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED;
+                                        
+                                        // Find quantity depending on if it's sold
+                                        const qty = isSoldOrCĐ ? (item.soldQuantity || Math.max(1, item.quantity)) : item.quantity;
+                                        
+                                        // Colors mapping
+                                        let rowBg = 'bg-white';
+                                        let statusText = 'Còn\nhàng';
+                                        let statusColor = '#2563eb'; // blue
+                                        
+                                        if (item.status === ConsignmentStatus.SOLD) {
+                                            rowBg = 'bg-[#fff9d6]';
+                                            statusText = 'Đã\nbán';
+                                            statusColor = '#d97706'; // orange
+                                        } else if (item.status === ConsignmentStatus.DEPOSITED) {
+                                            rowBg = 'bg-[#dff7e8]';
+                                            statusText = 'Mới\ncọc';
+                                            statusColor = '#16a34a'; // green
+                                        } else if (item.status === ConsignmentStatus.RETURNED) {
+                                            rowBg = 'bg-[#fee2e2]';
+                                            statusText = 'Đã trả\nlại';
+                                            statusColor = '#dc2626'; // red
+                                        }
+
+                                        return (
+                                            <tr key={idx} className={item.status === ConsignmentStatus.SOLD ? "bg-[#fff9d6]" : item.status === ConsignmentStatus.DEPOSITED ? "bg-[#dff7e8]" : "bg-white"}>
+                                                <td className="p-3 text-[12px] text-gray-800 border" style={{ borderColor: '#ee4d9a' }}>
+                                                    {item.productName}
+                                                </td>
+                                                <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: '#555' }}>
+                                                    <div className="flex flex-col items-center">
+                                                        <span>{new Intl.NumberFormat('vi-VN').format(item.consignmentPrice)}</span>
+                                                        <span className="text-[10px]">đ</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-[13px] font-bold text-center text-gray-700 border" style={{ borderColor: '#ee4d9a' }}>
+                                                    {qty}
+                                                </td>
+                                                <td className="p-3 text-[13px] font-bold text-center text-gray-700 border" style={{ borderColor: '#ee4d9a' }}>
+                                                    {item.consignmentFee}%
+                                                </td>
+                                                <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: '#555' }}>
+                                                    <div className="flex flex-col items-center">
+                                                        <span>{new Intl.NumberFormat('vi-VN').format(amountAfterFee)}</span>
+                                                        <span className="text-[10px]">đ</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-[12px] font-bold text-center border whitespace-pre-wrap" style={{ borderColor: '#ee4d9a', color: statusColor, lineHeight: '1.2' }}>
+                                                    {statusText}
+                                                </td>
+                                                <td className="p-2 text-[11px] font-medium text-center text-[#d97706] border" style={{ borderColor: '#ee4d9a' }}>
+                                                    {item.note || ''}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Summary Block */}
+                        {(() => {
+                            const summary = calculateSummary(exportingConsignor.items);
+                            let totalAvailablePayout = 0;
+                            exportingConsignor.items.forEach(item => {
+                                if (item.status === ConsignmentStatus.SOLD) {
+                                    const qty = item.soldQuantity || Math.max(1, item.quantity);
+                                    totalAvailablePayout += item.consignmentPrice * (1 - item.consignmentFee / 100) * qty;
+                                }
+                            });
+
+                            return (
+                                <div className="border bg-[#f8f9fa] shadow-sm mx-auto" style={{ borderColor: '#e2e8f0', width: '90%' }}>
+                                    <div className="p-6">
+                                        <h4 className="text-[#4b5563] text-[16px] font-bold mb-5 ml-2">TỔNG KẾT</h4>
+                                        
+                                        <div className="space-y-4 px-6 text-[14px]">
+                                            <div className="flex">
+                                                <span className="text-[#4b5563] w-[220px]">Tổng số lượng ký gửi:</span>
+                                                <span className="font-bold text-[#1f2937]">{summary.totalItems}</span>
+                                            </div>
+                                            <div className="flex">
+                                                <span className="text-[#4b5563] w-[220px]">Đã bán:</span>
+                                                <span className="font-bold" style={{ color: '#d97706' }}>{summary.soldItems}</span>
+                                            </div>
+                                            <div className="flex">
+                                                <span className="text-[#4b5563] w-[220px]">Mới cọc:</span>
+                                                <span className="font-bold" style={{ color: '#16a34a' }}>{summary.depositedItems}</span>
+                                            </div>
+                                            <div className="flex">
+                                                <span className="text-[#4b5563] w-[220px]">Đã trả lại:</span>
+                                                <span className="font-bold" style={{ color: '#dc2626' }}>{summary.returnedItems}</span>
+                                            </div>
+                                            <div className="flex mb-2">
+                                                <span className="text-[#4b5563] w-[220px]">Còn lại:</span>
+                                                <span className="font-bold" style={{ color: '#3b82f6' }}>{summary.inStockItems}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-6 pb-6 mt-2">
+                                        <div className="border-t pt-4 flex justify-between items-center" style={{ borderColor: '#cbd5e1' }}>
+                                            <span className="font-bold text-[15px]" style={{ color: '#e74c3c' }}>Tổng tiền shop thanh toán:</span>
+                                            <div className="flex items-end gap-1">
+                                                <span className="font-bold text-[18px]" style={{ color: '#e74c3c' }}>{new Intl.NumberFormat('vi-VN').format(totalAvailablePayout)}</span>
+                                                <span className="font-bold text-[15px] mb-[1px]" style={{ color: '#e74c3c' }}>đ</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
