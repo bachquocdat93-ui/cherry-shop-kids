@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { Invoice, InvoiceItem, ConsignmentItem, ShopItem } from '../types';
+import type { Invoice, InvoiceItem, ConsignmentItem, ShopItem, CustomerInfo } from '../types';
 import { RevenueStatus, ConsignmentStatus } from '../types';
 import { CloseIcon, PlusIcon, TrashIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
@@ -17,9 +17,12 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
   const [customerName, setCustomerName] = useState(invoice?.customerName || '');
   const [items, setItems] = useState<InvoiceItem[]>(invoice?.items || [{ id: generateUniqueId(), productName: '', sellingPrice: 0, quantity: 1, status: RevenueStatus.HOLDING }]);
   const [deposit, setDeposit] = useState(invoice?.deposit || 0);
+  const [shippingFee, setShippingFee] = useState(invoice?.shippingFee || 0);
+  const [discount, setDiscount] = useState(invoice?.discount || 0);
 
   const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
   const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
+  const [customersData] = useLocalStorage<CustomerInfo[]>('customersData', []);
 
   /* Logic update: Initialize with persisted source if available */
   // We need to initialize itemSources and itemSourceDetails based on the presence of shopItemId or consignor info in the items.
@@ -241,7 +244,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
       console.error("Critical Error updating inventory:", e);
     }
 
-    onSave({ id: invoice?.id || generateUniqueId(), customerName, items, deposit });
+    onSave({ id: invoice?.id || generateUniqueId(), customerName, items, deposit, shippingFee, discount });
   };
 
   return (
@@ -253,19 +256,44 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><CloseIcon /></button>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-1">
                 <label htmlFor="customerName" className="block text-sm font-medium text-gray-700">Tên Khách Hàng <span className="text-red-500">*</span></label>
-                <input type="text" id="customerName" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+                <input type="text" id="customerName" list="customer-list" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+                <datalist id="customer-list">
+                    {customersData.map(c => <option key={c.name} value={c.name} />)}
+                </datalist>
               </div>
-              <div>
+              <div className="md:col-span-1">
+                <label htmlFor="discount" className="block text-sm font-medium text-gray-700">Giảm giá</label>
+                <input
+                  type="number"
+                  id="discount"
+                  value={discount}
+                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm text-green-600 font-bold"
+                  min="0"
+                />
+              </div>
+              <div className="md:col-span-1">
+                <label htmlFor="shippingFee" className="block text-sm font-medium text-gray-700">Phí ship (dự kiến)</label>
+                <input
+                  type="number"
+                  id="shippingFee"
+                  value={shippingFee}
+                  onChange={(e) => setShippingFee(parseFloat(e.target.value) || 0)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm text-blue-600 font-bold"
+                  min="0"
+                />
+              </div>
+              <div className="md:col-span-1">
                 <label htmlFor="deposit" className="block text-sm font-medium text-gray-700">Đã cọc</label>
                 <input
                   type="number"
                   id="deposit"
                   value={deposit}
                   onChange={(e) => setDeposit(parseFloat(e.target.value) || 0)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm text-orange-600 font-bold"
                   min="0"
                 />
               </div>

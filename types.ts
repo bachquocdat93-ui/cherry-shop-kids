@@ -36,6 +36,8 @@ export interface Invoice {
   customerName: string;
   items: InvoiceItem[];
   deposit: number;
+  shippingFee?: number;
+  discount?: number;
 }
 
 export enum ConsignmentStatus {

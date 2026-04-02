@@ -572,7 +572,10 @@ const InvoicesTable = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredInvoices.length > 0 ? filteredInvoices.map((invoice) => {
-                    const totalPrice = invoice.items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
+                    const baseTotal = invoice.items.reduce((sum, item) => sum + item.sellingPrice * item.quantity, 0);
+                    const shippingFee = invoice.shippingFee || 0;
+                    const discount = invoice.discount || 0;
+                    const totalPrice = baseTotal - discount + shippingFee;
                     const isSelected = selectedIds.includes(invoice.id);
                     return (
                         <div key={invoice.id} onClick={(e) => toggleSelectOne(invoice.id, e)} className={`border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md cursor-pointer ${isSelected ? 'ring-2 ring-primary bg-blue-50/20' : ''} ${activeTab === RevenueStatus.HOLDING ? 'bg-white border-gray-100' : activeTab === RevenueStatus.SHIPPING ? 'bg-green-50/30 border-green-100' : 'bg-yellow-50/30 border-yellow-100'}`}>
@@ -654,9 +657,15 @@ const InvoicesTable = () => {
                             </div>
                             <div className="pt-3 border-t border-dashed space-y-2">
                                 <div className="flex justify-between items-center text-xs">
-                                    <span className="text-gray-500">Tổng tiền ({activeTab}):</span>
-                                    <span className="font-bold text-gray-800">{formatCurrency(totalPrice)}</span>
+                                    <span className="text-gray-500">Tiền hàng:</span>
+                                    <span className="font-bold text-gray-800">{formatCurrency(baseTotal)}</span>
                                 </div>
+                                {(discount > 0 || shippingFee > 0) && (
+                                    <div className="flex justify-between items-center text-[11px]">
+                                        <span className="text-gray-400">Ship: <span className="text-blue-500">{formatCurrency(shippingFee)}</span> | Giảm: <span className="text-green-500">-{formatCurrency(discount)}</span></span>
+                                        <span className="font-bold text-gray-600">Tổng: {formatCurrency(totalPrice)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-gray-500">Đã cọc:</span>
                                     <span className="font-bold text-green-600">{formatCurrency(invoice.deposit)}</span>
@@ -714,22 +723,50 @@ const InvoicesTable = () => {
                         </div>
 
                         <div className="border-t-[3px] border-solid border-gray-100 pt-6 space-y-3 relative z-10">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500 font-bold uppercase">Tổng tiền:</span>
-                                <span className="font-black text-gray-900 text-lg">{formatCurrency(exportingInvoice.items.reduce((s,i) => s + i.sellingPrice*i.quantity, 0))}</span>
-                            </div>
-                            {exportingInvoice.deposit > 0 && (
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-500 font-bold uppercase">Đã cọc/Trả:</span>
-                                    <span className="font-black text-green-600 text-lg">- {formatCurrency(exportingInvoice.deposit)}</span>
-                                </div>
-                            )}
-                            <div className="flex justify-between items-center bg-primary-50 p-4 rounded-2xl mt-4 border border-primary-100 shadow-sm">
-                                <span className="text-sm font-black text-primary-700 uppercase">Còn Lại:</span>
-                                <span className="text-2xl font-black text-red-600">
-                                    {formatCurrency(Math.max(0, exportingInvoice.items.reduce((s,i) => s + i.sellingPrice*i.quantity, 0) - exportingInvoice.deposit))}
-                                </span>
-                            </div>
+                            {(() => {
+                                const baseTotal = exportingInvoice.items.reduce((s,i) => s + i.sellingPrice*i.quantity, 0);
+                                const discount = exportingInvoice.discount || 0;
+                                const shippingFee = exportingInvoice.shippingFee || 0;
+                                const finalPrice = baseTotal - discount + shippingFee;
+                                return (
+                                    <>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-500 font-bold uppercase">Tiền hàng:</span>
+                                            <span className="font-black text-gray-900 text-lg">{formatCurrency(baseTotal)}</span>
+                                        </div>
+                                        {discount > 0 && (
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-500 font-bold uppercase">Giảm giá:</span>
+                                                <span className="font-black text-green-600 text-lg">- {formatCurrency(discount)}</span>
+                                            </div>
+                                        )}
+                                        {shippingFee > 0 && (
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-500 font-bold uppercase">Phí ship:</span>
+                                                <span className="font-black text-blue-600 text-lg">+ {formatCurrency(shippingFee)}</span>
+                                            </div>
+                                        )}
+                                        {(discount > 0 || shippingFee > 0) && (
+                                            <div className="flex justify-between items-center text-sm border-t border-dashed border-gray-200 pt-2">
+                                                <span className="text-gray-600 font-bold uppercase">Tổng thanh toán:</span>
+                                                <span className="font-black text-gray-900 text-lg">{formatCurrency(finalPrice)}</span>
+                                            </div>
+                                        )}
+                                        {exportingInvoice.deposit > 0 && (
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-500 font-bold uppercase">Đã cọc/Trả:</span>
+                                                <span className="font-black text-orange-500 text-lg">- {formatCurrency(exportingInvoice.deposit)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center bg-primary-50 p-4 rounded-2xl mt-4 border border-primary-100 shadow-sm">
+                                            <span className="text-sm font-black text-primary-700 uppercase">Còn Lại:</span>
+                                            <span className="text-2xl font-black text-red-600">
+                                                {formatCurrency(Math.max(0, finalPrice - exportingInvoice.deposit))}
+                                            </span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         <div className="mt-10 space-y-1.5 relative z-10 bg-red-50/80 p-4 rounded-xl border border-red-100 text-[9px] text-red-600 leading-relaxed font-bold">
