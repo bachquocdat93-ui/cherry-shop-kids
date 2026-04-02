@@ -17,6 +17,7 @@ type GroupedItems = {
 }
 
 const CONSIGNMENT_COLUMNS = [
+    { key: 'stt', label: 'STT' },
     { key: 'productName', label: 'Sản Phẩm' },
     { key: 'consignmentPrice', label: 'Giá Bán' },
     { key: 'quantity', label: 'SL' },
@@ -444,7 +445,7 @@ const ConsignmentTable: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-100">
-                                        {customerItems.map(item => {
+                                        {customerItems.map((item, index) => {
                                             const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
                                             const isSelected = selectedIds.includes(item.id);
                                             const effectiveQty = (item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED)
@@ -461,6 +462,9 @@ const ConsignmentTable: React.FC = () => {
                                                             className="rounded border-gray-300 text-primary focus:ring-primary"
                                                         />
                                                     </td>
+                                                    {visibleColumns.includes('stt') && (
+                                                        <td className="px-4 py-3 text-center font-bold text-xs text-gray-500">{index + 1}</td>
+                                                    )}
                                                     {visibleColumns.includes('productName') && (
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-center gap-3">
