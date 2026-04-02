@@ -1,17 +1,32 @@
 import React, { useState, useRef } from 'react';
 import { ConsignmentItem, ConsignmentStatus } from '../types';
-import { CloseIcon } from './Icons';
+import { CloseIcon, TrashIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 
 interface ConsignmentModalProps {
   item: ConsignmentItem | null;
-  onSave: (item: ConsignmentItem) => void;
+  onSave: (items: ConsignmentItem[]) => void;
   onClose: () => void;
 }
 
+type ProductFormData = {
+  id: string;
+  productName: string;
+  consignmentPrice: number;
+  quantity: number;
+  consignmentFee: number;
+  status: ConsignmentStatus;
+  note: string;
+  imageUrl?: string;
+};
+
 const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClose }) => {
-  const [formData, setFormData] = useState<Omit<ConsignmentItem, 'id'>>({
+  const [commonData, setCommonData] = useState({
     customerName: item?.customerName || '',
+  });
+
+  const [productForm, setProductForm] = useState<ProductFormData>({
+    id: item?.id || generateUniqueId(),
     productName: item?.productName || '',
     consignmentPrice: item?.consignmentPrice || 0,
     quantity: item?.quantity || 1,
@@ -21,12 +36,17 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
     imageUrl: item?.imageUrl || '',
   });
 
+  const [addedItems, setAddedItems] = useState<ProductFormData[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCommonChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCommonData({ customerName: e.target.value });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     const isNumber = ['consignmentPrice', 'quantity', 'consignmentFee'].includes(name);
-    setFormData(prev => ({ ...prev, [name]: isNumber ? parseFloat(value) || 0 : value }));
+    setProductForm(prev => ({ ...prev, [name]: isNumber ? parseFloat(value) || 0 : value }));
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,9 +78,9 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          
+
           const compressedBase64 = canvas.toDataURL('image/webp', 0.6);
-          setFormData(prev => ({ ...prev, imageUrl: compressedBase64 }));
+          setProductForm(prev => ({ ...prev, imageUrl: compressedBase64 }));
         };
         img.src = reader.result as string;
       };
@@ -69,86 +89,174 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
   };
 
   const handleRemoveImage = () => {
-    setFormData(prev => ({ ...prev, imageUrl: undefined }));
+    setProductForm(prev => ({ ...prev, imageUrl: undefined }));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.customerName || !formData.productName || formData.consignmentPrice <= 0) {
-      alert('Vui lòng điền các trường bắt buộc: Tên khách hàng, Tên sản phẩm, Giá gửi bán.');
+  const handleAddToList = () => {
+    if (!productForm.productName || productForm.consignmentPrice <= 0) {
+      alert('Vui lòng điền đủ Tên sản phẩm và Giá gửi bán.');
       return;
     }
-    onSave({ ...formData, id: item?.id || generateUniqueId() });
+    setAddedItems(prev => [...prev, { ...productForm, id: generateUniqueId() }]);
+    setProductForm({
+      id: generateUniqueId(),
+      productName: '',
+      consignmentPrice: 0,
+      quantity: 1,
+      consignmentFee: productForm.consignmentFee, // Keep the same fee by default
+      status: ConsignmentStatus.IN_STOCK,
+      note: '',
+      imageUrl: '',
+    });
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
   };
 
-  const formFields = [
-    { name: 'customerName', label: 'Tên Khách Hàng', type: 'text', required: true },
-    { name: 'productName', label: 'Tên Sản Phẩm', type: 'text', required: true },
-    { name: 'consignmentPrice', label: 'Giá Gửi Bán', type: 'number', required: true },
-    { name: 'quantity', label: 'Số Lượng', type: 'number', required: true },
-    { name: 'consignmentFee', label: 'Phí ký gửi (%)', type: 'number', required: true },
-    { name: 'note', label: 'NOTE', type: 'textarea' },
-  ];
+  const handleRemoveFromList = (id: string) => {
+    setAddedItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commonData.customerName) {
+      alert('Vui lòng điền tên khách hàng.');
+      return;
+    }
+
+    const itemsToProcess = [...addedItems];
+    if (productForm.productName && productForm.consignmentPrice > 0) {
+      itemsToProcess.push({ ...productForm });
+    }
+
+    if (itemsToProcess.length === 0) {
+      alert('Vui lòng thêm ít nhất một sản phẩm hợp lệ.');
+      return;
+    }
+
+    const finalItems: ConsignmentItem[] = itemsToProcess.map(p => ({
+      id: p.id,
+      customerName: commonData.customerName,
+      productName: p.productName,
+      consignmentPrice: p.consignmentPrice,
+      quantity: p.quantity,
+      consignmentFee: p.consignmentFee,
+      status: p.status,
+      note: p.note,
+      imageUrl: p.imageUrl,
+    }));
+
+    onSave(finalItems);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-full overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-800">{item ? 'Chỉnh Sửa Hàng Ký Gửi' : 'Thêm Hàng Ký Gửi'}</h3>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-full overflow-y-auto">
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">{item ? 'Chỉnh Sửa Hàng Ký Gửi' : 'Thêm Hàng Ký Gửi'}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><CloseIcon /></button>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {formFields.map(field => (
-              <div key={field.name}>
-                <label htmlFor={field.name} className="block text-sm font-medium text-gray-700">
-                  {field.label} {field.required && <span className="text-red-500">*</span>}
-                </label>
-                {field.type === 'textarea' ? (
-                  <textarea id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
-                ) : (
-                  <input type={field.type} id={field.name} name={field.name} value={(formData as any)[field.name]} onChange={handleChange} required={field.required} min="0" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
-                )}
-              </div>
-            ))}
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">Trạng Thái</label>
-              <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
-                <option value={ConsignmentStatus.IN_STOCK}>Còn hàng</option>
-                <option value={ConsignmentStatus.DEPOSITED}>Mới cọc</option>
-                <option value={ConsignmentStatus.SOLD}>Đã bán</option>
-                <option value={ConsignmentStatus.RETURNED}>Trả hàng</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hình Ảnh Sản Phẩm</label>
-              <div className="flex items-center space-x-4 border border-dashed border-gray-300 p-4 rounded-md bg-gray-50">
-                {formData.imageUrl ? (
-                  <div className="relative w-24 h-24 shrink-0 rounded-md overflow-hidden border border-gray-200">
-                    <img src={formData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                    <button type="button" onClick={handleRemoveImage} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity">
-                      <CloseIcon className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-24 h-24 shrink-0 rounded-md bg-gray-200 flex items-center justify-center border border-gray-300 text-gray-400">
-                    <span className="text-xs">No Image</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 transition duration-150 ease-in-out" />
-                  <p className="mt-1 text-xs text-gray-500">Tải lên hình ảnh sản phẩm (tuỳ chọn)</p>
+          <div className="space-y-4">
+             <div className="bg-gray-50 p-4 rounded-xl shadow-inner mb-6 border border-gray-100">
+                <div>
+                  <label htmlFor="customerName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên khách hàng <span className="text-red-500">*</span></label>
+                  <input type="text" id="customerName" name="customerName" value={commonData.customerName} onChange={handleCommonChange} disabled={!!item} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium disabled:opacity-50" />
                 </div>
-              </div>
             </div>
-            <div className="flex justify-end pt-4 space-x-2">
-              <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
-              <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-700">Lưu</button>
+
+            {addedItems.length > 0 && !item && (
+               <div className="mb-4 space-y-2">
+                 <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Đã thêm ({addedItems.length} sản phẩm)</label>
+                 {addedItems.map((added, index) => (
+                    <div key={added.id} className="flex justify-between items-center bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">{index + 1}. {added.productName}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{added.quantity} x {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(added.consignmentPrice)}</p>
+                      </div>
+                      <button type="button" onClick={() => handleRemoveFromList(added.id)} className="text-red-500 p-1.5 bg-white hover:bg-red-50 rounded-lg shadow-sm border border-red-100 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    </div>
+                 ))}
+               </div>
+            )}
+
+            <div className="p-4 border border-gray-100 rounded-xl relative">
+                {addedItems.length > 0 && !item && (
+                  <span className="absolute -top-2 left-4 bg-white px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sản phẩm tiếp theo</span>
+                )}
+                <div className="space-y-4">
+                    <div>
+                      <label htmlFor="productName" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tên Sản Phẩm <span className="text-red-500">*</span></label>
+                      <input type="text" id="productName" name="productName" value={productForm.productName} onChange={handleChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      <div className="col-span-1">
+                        <label htmlFor="consignmentPrice" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Giá Gửi Bán <span className="text-red-500">*</span></label>
+                        <input type="number" id="consignmentPrice" name="consignmentPrice" value={productForm.consignmentPrice} onChange={handleChange} required min="0" className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                      </div>
+                      <div className="col-span-1">
+                          <label htmlFor="quantity" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">SL <span className="text-red-500">*</span></label>
+                          <input type="number" id="quantity" name="quantity" value={productForm.quantity} onChange={handleChange} required min="0" className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium font-bold text-center" />
+                      </div>
+                      <div className="col-span-1">
+                        <label htmlFor="consignmentFee" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phí C.Hàng (%) <span className="text-red-500">*</span></label>
+                        <input type="number" id="consignmentFee" name="consignmentFee" value={productForm.consignmentFee} onChange={handleChange} required min="0" className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-medium" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="status" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Trạng Thái</label>
+                      <select id="status" name="status" value={productForm.status} onChange={handleChange} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-sm font-bold bg-white">
+                        <option value={ConsignmentStatus.IN_STOCK}>Còn hàng</option>
+                        <option value={ConsignmentStatus.DEPOSITED}>Mới cọc</option>
+                        <option value={ConsignmentStatus.SOLD}>Đã bán</option>
+                        <option value={ConsignmentStatus.RETURNED}>Trả hàng</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label htmlFor="note" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">GHI CHÚ</label>
+                      <textarea id="note" name="note" value={productForm.note} onChange={handleChange} rows={2} className="block w-full rounded-xl border-gray-200 shadow-sm focus:border-primary focus:ring-primary text-xs font-medium" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Hình Ảnh Sản Phẩm</label>
+                      <div className="flex items-center space-x-4 border border-dashed border-gray-300 p-4 rounded-xl bg-gray-50">
+                        {productForm.imageUrl ? (
+                          <div className="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-gray-200">
+                            <img src={productForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                            <button type="button" onClick={handleRemoveImage} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity">
+                              <CloseIcon className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-20 h-20 shrink-0 rounded-lg bg-gray-200 flex items-center justify-center border border-gray-300 text-gray-400">
+                            <span className="text-[10px] uppercase font-bold text-center px-2">Chưa Có Ảnh</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="block w-full text-[11px] text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 transition duration-150 ease-in-out cursor-pointer" />
+                        </div>
+                      </div>
+                    </div>
+                </div>
             </div>
-          </form>
+
+            {!item && (
+               <button type="button" onClick={handleAddToList} className="mt-2 w-full py-2.5 border-2 border-dashed border-primary/30 text-primary-600 bg-primary-50 font-black text-xs uppercase tracking-tight rounded-xl hover:bg-primary-100 transition-colors flex items-center justify-center gap-2">
+                  <span>+</span> Thêm 1 sản phẩm nữa
+               </button>
+            )}
+
+            <div className="flex justify-end pt-6 space-x-3 border-t border-gray-100 mt-6">
+              <button type="button" onClick={onClose} className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-bold transition-all text-sm">Hủy</button>
+              <button type="button" onClick={handleSubmit} className="px-8 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 font-black shadow-lg shadow-primary/20 transition-all text-sm uppercase tracking-tight">Lưu Hàng Ký Gửi</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -156,3 +264,4 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
 };
 
 export default ConsignmentModal;
+

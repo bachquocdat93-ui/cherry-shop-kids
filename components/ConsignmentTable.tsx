@@ -130,11 +130,12 @@ const ConsignmentTable: React.FC = () => {
         setEditingItem(null);
     };
 
-    const handleSave = (item: ConsignmentItem) => {
+    const handleSave = (itemsToSave: ConsignmentItem[]) => {
         if (editingItem) {
+            const item = itemsToSave[0];
             setItems(prev => prev.map(i => i.id === item.id ? item : i));
         } else {
-            setItems(prev => [...prev, { ...item, id: Date.now().toString() }]);
+            setItems(prev => [...prev, ...itemsToSave]);
         }
         handleCloseModal();
     };
