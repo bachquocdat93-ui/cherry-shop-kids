@@ -41,6 +41,7 @@ export const pushToCloud = async (data: {
   consignment: any[];
   inventory?: any[];
   customersInfo?: any[];
+  accounts?: any[];
 }) => {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error("Chưa cấu hình Supabase");

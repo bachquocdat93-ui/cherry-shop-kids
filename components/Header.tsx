@@ -38,8 +38,9 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
       const invoices = JSON.parse(localStorage.getItem('invoicesData') || '[]');
       const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
       const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
+      const accounts = JSON.parse(localStorage.getItem('accountsData') || '[]');
 
-      await pushToCloud({ revenue, invoices, consignment, inventory });
+      await pushToCloud({ revenue, invoices, consignment, inventory, accounts });
       alert("Đã đẩy dữ liệu lên Cloud thành công!");
     } catch (e: any) {
       alert("Lỗi: " + e.message);
@@ -56,6 +57,9 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
         window.localStorage.setItem('consignmentData', JSON.stringify(data.consignment));
         if (data.inventory) {
           window.localStorage.setItem('shopInventoryData', JSON.stringify(data.inventory));
+        }
+        if (data.accounts) {
+          window.localStorage.setItem('accountsData', JSON.stringify(data.accounts));
         }
         alert("Đã tải dữ liệu thành công! Trang sẽ tải lại.");
         window.location.reload();

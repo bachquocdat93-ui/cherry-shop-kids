@@ -39,6 +39,10 @@ const AutoSyncManager: React.FC = () => {
                         localStorage.setItem('customersInfoData', JSON.stringify(data.customersInfo));
                         window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'customersInfoData' } }));
                     }
+                    if (data.accounts) {
+                        localStorage.setItem('accountsData', JSON.stringify(data.accounts));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'accountsData' } }));
+                    }
                     setStatus('pulled');
                     setTimeout(() => setStatus('idle'), 3000);
                 } else {
@@ -61,7 +65,7 @@ const AutoSyncManager: React.FC = () => {
             const key = customEvent.detail?.key;
 
             // Only sync if these specific data keys change
-            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData', 'customersInfoData'];
+            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData', 'customersInfoData', 'accountsData'];
             if (!key || !watchedKeys.includes(key)) return;
 
             // Check if Cloud is configured
@@ -78,8 +82,9 @@ const AutoSyncManager: React.FC = () => {
                     const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
                     const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
                     const customersInfo = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
+                    const accounts = JSON.parse(localStorage.getItem('accountsData') || '[]');
 
-                    await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo });
+                    await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo, accounts });
 
                     setStatus('saved');
                     setLastSaved(new Date());
