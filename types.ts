@@ -58,6 +58,7 @@ export interface ConsignmentItem {
   status: ConsignmentStatus;
   note?: string;
   imageUrl?: string;
+  isFee?: boolean; // Nếu true, đây là khoản phí trừ trực tiếp vào tiền thanh toán
 }
 
 export interface CustomerInfo {

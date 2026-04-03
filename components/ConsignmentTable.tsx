@@ -277,6 +277,7 @@ const ConsignmentTable: React.FC = () => {
 
     const calculateSummary = (customerItems: ConsignmentItem[]) => {
         const getEffectiveQty = (item: ConsignmentItem) => {
+            if (item.isFee) return 1;
             if (item.soldQuantity !== undefined && item.soldQuantity > 0) return item.soldQuantity;
             if ((item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED) && item.quantity === 0) {
                 return 1;
@@ -284,16 +285,16 @@ const ConsignmentTable: React.FC = () => {
             return item.quantity;
         };
 
-        const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD).reduce((sum, item) => sum + getEffectiveQty(item), 0);
-        const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED).reduce((sum, item) => sum + getEffectiveQty(item), 0);
-        const returnedItems = customerItems.filter(i => i.status === ConsignmentStatus.RETURNED).reduce((sum, item) => sum + item.quantity, 0);
-        const inStockItems = customerItems.filter(i => i.status === ConsignmentStatus.IN_STOCK).reduce((sum, item) => sum + item.quantity, 0);
+        const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD && !i.isFee).reduce((sum, item) => sum + getEffectiveQty(item), 0);
+        const depositedItems = customerItems.filter(i => i.status === ConsignmentStatus.DEPOSITED && !i.isFee).reduce((sum, item) => sum + getEffectiveQty(item), 0);
+        const returnedItems = customerItems.filter(i => i.status === ConsignmentStatus.RETURNED && !i.isFee).reduce((sum, item) => sum + item.quantity, 0);
+        const inStockItems = customerItems.filter(i => i.status === ConsignmentStatus.IN_STOCK && !i.isFee).reduce((sum, item) => sum + item.quantity, 0);
         const totalItems = soldItems + depositedItems + returnedItems + inStockItems;
         
         const totalTransferAmount = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
-            .reduce((sum, item) => sum + (item.consignmentPrice * (1 - item.consignmentFee / 100)) * getEffectiveQty(item), 0);
+            .reduce((sum, item) => sum + (item.isFee ? -item.consignmentPrice : (item.consignmentPrice * (1 - item.consignmentFee / 100)) * getEffectiveQty(item)), 0);
 
-        const totalValueSold = customerItems.filter(i => i.status === ConsignmentStatus.SOLD)
+        const totalValueSold = customerItems.filter(i => i.status === ConsignmentStatus.SOLD && !i.isFee)
             .reduce((sum, item) => sum + item.consignmentPrice * getEffectiveQty(item), 0);
 
         return { totalItems, soldItems, depositedItems, returnedItems, inStockItems, totalValueSold, totalTransferAmount };
@@ -323,7 +324,7 @@ const ConsignmentTable: React.FC = () => {
             const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD);
             const newRevenueEntries: RevenueEntry[] = soldItems.map(item => {
                 const effectiveSoldQty = item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity);
-                const profitPerItem = item.consignmentPrice * (item.consignmentFee / 100);
+                const profitPerItem = item.isFee ? item.consignmentPrice : item.consignmentPrice * (item.consignmentFee / 100);
                 return {
                     id: crypto.randomUUID(),
                     date: new Date().toISOString(), // Settle Date
@@ -496,7 +497,7 @@ const ConsignmentTable: React.FC = () => {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-100">
                                         {customerItems.map((item, index) => {
-                                            const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                            const amountAfterFee = item.isFee ? -item.consignmentPrice : (item.consignmentPrice * (1 - item.consignmentFee / 100));
                                             const isSelected = selectedIds.includes(item.id);
                                             const effectiveQty = (item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED)
                                                 ? (item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity))
@@ -526,10 +527,10 @@ const ConsignmentTable: React.FC = () => {
                                                         </td>
                                                     )}
                                                     {visibleColumns.includes('consignmentPrice') && <td className="px-4 py-3 whitespace-nowrap text-xs font-medium">{formatCurrency(item.consignmentPrice)}</td>}
-                                                    {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{effectiveQty}</td>}
-                                                    {visibleColumns.includes('consignmentFee') && <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.consignmentFee}%</td>}
-                                                    {visibleColumns.includes('amountAfterFee') && <td className="px-4 py-3 whitespace-nowrap text-xs font-black text-blue-700">{formatCurrency(amountAfterFee)}</td>}
-                                                    {visibleColumns.includes('status') && <td className="px-4 py-3 whitespace-nowrap text-xs">{getStatusBadge(item.status)}</td>}
+                                                    {visibleColumns.includes('quantity') && <td className="px-4 py-3 whitespace-nowrap text-xs text-center font-black">{item.isFee ? '-' : effectiveQty}</td>}
+                                                    {visibleColumns.includes('consignmentFee') && <td className="px-4 py-3 whitespace-nowrap text-xs italic opacity-60">{item.isFee ? '-' : `${item.consignmentFee}%`}</td>}
+                                                    {visibleColumns.includes('amountAfterFee') && <td className={`px-4 py-3 whitespace-nowrap text-xs font-black ${item.isFee ? 'text-red-600' : 'text-blue-700'}`}>{formatCurrency(amountAfterFee)}</td>}
+                                                    {visibleColumns.includes('status') && <td className="px-4 py-3 whitespace-nowrap text-xs">{item.isFee ? <span className="text-[10px] font-black uppercase text-red-500">Phí</span> : getStatusBadge(item.status)}</td>}
                                                     {visibleColumns.includes('note') && <td className="px-4 py-3 text-xs text-gray-500 italic max-w-[150px] whitespace-pre-wrap break-words" title={item.note}>{item.note || '-'}</td>}
                                                     {visibleColumns.includes('actions') && <td className="px-4 py-3 whitespace-nowrap text-xs">
                                                         <div className="flex gap-1">
@@ -563,7 +564,7 @@ const ConsignmentTable: React.FC = () => {
                                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Chọn tất cả ({customerItems.length})</span>
                                 </div>
                                 {customerItems.map(item => {
-                                    const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                    const amountAfterFee = item.isFee ? -item.consignmentPrice : (item.consignmentPrice * (1 - item.consignmentFee / 100));
                                     const isSelected = selectedIds.includes(item.id);
                                     const effectiveQty = (item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED)
                                         ? (item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity))
@@ -584,9 +585,15 @@ const ConsignmentTable: React.FC = () => {
                                                             {item.imageUrl && (
                                                                 <img src={item.imageUrl} alt={item.productName} className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0" />
                                                             )}
-                                                            <p className="font-bold text-gray-800 text-sm truncate pr-2">{item.productName}</p>
+                                                            <p className="font-bold text-gray-800 text-sm truncate pr-2">
+                                                                {item.productName}
+                                                                {item.isFee && <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded uppercase tracking-wider">Phụ phí</span>}
+                                                            </p>
                                                         </div>
-                                                        <div className="flex items-center gap-2">{getStatusBadge(item.status)} <span className="text-[10px] text-gray-400">SL: {effectiveQty}</span></div>
+                                                        <div className="flex items-center gap-2">
+                                                            {item.isFee ? <span className="text-[10px] font-black uppercase text-red-500 bg-red-50 border border-red-200 px-2 rounded-full">Phí</span> : getStatusBadge(item.status)} 
+                                                            {!item.isFee && <span className="text-[10px] text-gray-400">SL: {effectiveQty}</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-1 shrink-0">
@@ -601,8 +608,8 @@ const ConsignmentTable: React.FC = () => {
                                                     <p className="font-bold text-gray-900">{formatCurrency(item.consignmentPrice)}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-[10px] text-gray-400 uppercase">Nhận về ({100 - item.consignmentFee}%)</p>
-                                                    <p className="font-black text-blue-700">{formatCurrency(amountAfterFee)}</p>
+                                                    <p className="text-[10px] text-gray-400 uppercase">{item.isFee ? 'Trừ tiền' : `Nhận về (${100 - item.consignmentFee}%)`}</p>
+                                                    <p className={`font-black ${item.isFee ? 'text-red-600' : 'text-blue-700'}`}>{formatCurrency(amountAfterFee)}</p>
                                                 </div>
                                             </div>
                                             {item.note && <p className="mt-2 text-xs text-gray-500 italic bg-gray-50 p-1.5 rounded border border-gray-100">"{item.note}"</p>}
@@ -699,7 +706,7 @@ const ConsignmentTable: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {exportingConsignor.items.map((item, idx) => {
-                                        const amountAfterFee = item.consignmentPrice * (1 - item.consignmentFee / 100);
+                                        const amountAfterFee = item.isFee ? -item.consignmentPrice : (item.consignmentPrice * (1 - item.consignmentFee / 100));
                                         const isSoldOrCĐ = item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED;
                                         
                                         // Find quantity depending on if it's sold
@@ -710,7 +717,11 @@ const ConsignmentTable: React.FC = () => {
                                         let statusText = 'Còn\nhàng';
                                         let statusColor = '#2563eb'; // blue
                                         
-                                        if (item.status === ConsignmentStatus.SOLD) {
+                                        if (item.isFee) {
+                                            rowBg = 'bg-[#fef2f2]'; // Light red
+                                            statusText = 'Trừ\nphí';
+                                            statusColor = '#dc2626'; // Red
+                                        } else if (item.status === ConsignmentStatus.SOLD) {
                                             rowBg = 'bg-[#fff9d6]';
                                             statusText = 'Đã\nbán';
                                             statusColor = '#d97706'; // orange
@@ -725,8 +736,9 @@ const ConsignmentTable: React.FC = () => {
                                         }
 
                                         return (
-                                            <tr key={idx} className={item.status === ConsignmentStatus.SOLD ? "bg-[#fff9d6]" : item.status === ConsignmentStatus.DEPOSITED ? "bg-[#dff7e8]" : "bg-white"}>
+                                            <tr key={idx} className={rowBg}>
                                                 <td className="p-3 text-[12px] text-gray-800 border" style={{ borderColor: '#ee4d9a' }}>
+                                                    {item.isFee && <span className="mr-1 text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded font-black">PHỤ PHÍ</span>}
                                                     {item.productName}
                                                 </td>
                                                 <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: '#555' }}>
@@ -736,12 +748,12 @@ const ConsignmentTable: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-3 text-[13px] font-bold text-center text-gray-700 border" style={{ borderColor: '#ee4d9a' }}>
-                                                    {qty}
+                                                    {item.isFee ? '-' : qty}
                                                 </td>
                                                 <td className="p-3 text-[13px] font-bold text-center text-gray-700 border" style={{ borderColor: '#ee4d9a' }}>
-                                                    {item.consignmentFee}%
+                                                    {item.isFee ? '-' : `${item.consignmentFee}%`}
                                                 </td>
-                                                <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: '#555' }}>
+                                                <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: item.isFee ? '#dc2626' : '#555' }}>
                                                     <div className="flex flex-col items-center">
                                                         <span>{new Intl.NumberFormat('vi-VN').format(amountAfterFee)}</span>
                                                         <span className="text-[10px]">đ</span>
@@ -765,7 +777,9 @@ const ConsignmentTable: React.FC = () => {
                             const summary = calculateSummary(exportingConsignor.items);
                             let totalAvailablePayout = 0;
                             exportingConsignor.items.forEach(item => {
-                                if (item.status === ConsignmentStatus.SOLD) {
+                                if (item.isFee && item.status === ConsignmentStatus.SOLD) {
+                                    totalAvailablePayout -= item.consignmentPrice;
+                                } else if (item.status === ConsignmentStatus.SOLD) {
                                     const qty = item.soldQuantity || Math.max(1, item.quantity);
                                     totalAvailablePayout += item.consignmentPrice * (1 - item.consignmentFee / 100) * qty;
                                 }
