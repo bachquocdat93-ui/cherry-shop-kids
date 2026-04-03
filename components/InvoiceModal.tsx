@@ -368,7 +368,7 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
                     </div>
                     <div className="col-span-6 md:col-span-1">
                       <label className="text-[10px] uppercase font-bold text-gray-400">Giá bán</label>
-                      <input type="number" value={item.sellingPrice} onChange={(e) => handleItemChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)} placeholder="Giá" required className="block w-full text-sm rounded-md border-gray-300 shadow-sm" readOnly={source !== 'manual'} />
+                      <input type="number" value={item.sellingPrice} onChange={(e) => handleItemChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)} placeholder="Giá" required className="block w-full text-sm rounded-md border-gray-300 shadow-sm" readOnly={source === 'shop'} />
                     </div>
                     <div className="col-span-6 md:col-span-1">
                       <label className="text-[10px] uppercase font-bold text-gray-400">SL</label>

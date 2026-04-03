@@ -448,7 +448,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                       </div>
                       <div className="col-span-1">
                         <label htmlFor="retailPrice" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Giá Bán <span className="text-red-500">*</span></label>
-                        <input type="number" id="retailPrice" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold py-2.5 px-3 transition-colors text-blue-700 ${productForm.source !== 'manual' ? 'bg-slate-50 cursor-not-allowed border-slate-100' : 'bg-slate-50/30 focus:bg-white'}`} readOnly={productForm.source !== 'manual'} />
+                        <input type="number" id="retailPrice" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className={`block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold py-2.5 px-3 transition-colors text-blue-700 ${productForm.source === 'shop' ? 'bg-slate-50 cursor-not-allowed border-slate-100' : 'bg-slate-50/30 focus:bg-white'}`} readOnly={productForm.source === 'shop'} />
                       </div>
                       <div className="col-span-1">
                           <label htmlFor="quantity" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">SL <span className="text-red-500">*</span></label>
