@@ -40,6 +40,10 @@ const ConsignmentTable: React.FC = () => {
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('consignmentVisibleColumns', CONSIGNMENT_COLUMNS.map(c => c.key));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+    const currentUserData = window.localStorage.getItem('currentUser');
+    const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
+    const isAdmin = currentUser?.role === 'ADMIN';
+
     const receiptRef = useRef<HTMLDivElement>(null);
     const [exportingConsignor, setExportingConsignor] = useState<{ name: string, items: ConsignmentItem[] } | null>(null);
 
@@ -185,18 +189,30 @@ const ConsignmentTable: React.FC = () => {
     };
 
     const handleDelete = (id: string) => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm('Bạn có chắc chắn muốn xóa mục ký gửi này?')) {
             setItems(prev => prev.filter(i => i.id !== id));
         }
     };
 
     const handleDeleteCustomer = (customerName: string) => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm(`Bạn có chắc chắn muốn xóa TẤT CẢ các mục ký gửi của khách hàng "${customerName}" không? Hành động này không thể hoàn tác.`)) {
             setItems(prevItems => prevItems.filter(item => item.customerName !== customerName));
         }
     };
 
     const handleClearAll = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu ký gửi không? Hành động này không thể hoàn tác.')) {
             setItems([]);
         }
@@ -213,6 +229,10 @@ const ConsignmentTable: React.FC = () => {
     };
 
     const handleBulkDelete = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} mục ký gửi đã chọn?`)) {
             setItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
             setSelectedIds([]);
@@ -301,6 +321,10 @@ const ConsignmentTable: React.FC = () => {
     };
 
     const handleSettle = (customerName: string, customerItems: ConsignmentItem[]) => {
+        if (!isAdmin) {
+            alert('Chỉ Admin mới có quyền thanh toán!');
+            return;
+        }
         const summary = calculateSummary(customerItems);
         if (summary.soldItems === 0) {
             alert(`Khách hàng ${customerName} không có sản phẩm nào "Đã bán" để thanh toán.`);
@@ -386,9 +410,11 @@ const ConsignmentTable: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 justify-between sm:justify-start">
-                        <button onClick={handleClearAll} className="hidden lg:flex text-red-500 hover:text-red-700 text-[10px] items-center gap-1 font-black bg-red-50 px-2 py-1 rounded border border-red-100 uppercase whitespace-nowrap">
-                            <ClearIcon className="w-3 h-3" /> Xóa sạch
-                        </button>
+                        {isAdmin && (
+                            <button onClick={handleClearAll} className="hidden lg:flex text-red-500 hover:text-red-700 text-[10px] items-center gap-1 font-black bg-red-50 px-2 py-1 rounded border border-red-100 uppercase whitespace-nowrap">
+                                <ClearIcon className="w-3 h-3" /> Xóa sạch
+                            </button>
+                        )}
 
                         {selectedIds.length > 0 && (
                             <div className="flex items-center gap-1.5 bg-blue-50 p-1 rounded-xl border border-blue-200">
@@ -400,7 +426,7 @@ const ConsignmentTable: React.FC = () => {
                             </div>
                         )}
 
-                        {selectedIds.length > 0 && (
+                        {selectedIds.length > 0 && isAdmin && (
                             <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-xs flex items-center gap-1 whitespace-nowrap">
                                 <TrashIcon className="w-4 h-4" /> ({selectedIds.length})
                             </button>
@@ -450,7 +476,7 @@ const ConsignmentTable: React.FC = () => {
                                         <CameraIcon className="w-3.5 h-3.5" />
                                         <span>Ảnh</span>
                                     </button>
-                                    {summary.soldItems > 0 && (
+                                    {summary.soldItems > 0 && isAdmin && (
                                         <button
                                             onClick={() => handleSettle(customerName, customerItems)}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase bg-purple-600 text-white px-2 sm:px-3 py-2 rounded-xl hover:bg-purple-700 transition-colors shadow-sm"
@@ -459,14 +485,16 @@ const ConsignmentTable: React.FC = () => {
                                             <span>Thanh toán</span>
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => handleDeleteCustomer(customerName)}
-                                        className="flex-none flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase bg-red-50 text-red-600 px-3 py-2 rounded-xl hover:bg-red-600 hover:text-white transition-colors border border-red-100"
-                                        title="Xóa khách này"
-                                    >
-                                        <TrashIcon className="w-3.5 h-3.5" />
-                                        <span className="hidden sm:inline">Xóa Khách</span>
-                                    </button>
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => handleDeleteCustomer(customerName)}
+                                            className="flex-none flex items-center gap-2 text-[10px] sm:text-[11px] font-black uppercase bg-red-50 text-red-600 px-3 py-2 rounded-xl hover:bg-red-600 hover:text-white transition-colors border border-red-100"
+                                            title="Xóa khách này"
+                                        >
+                                            <TrashIcon className="w-3.5 h-3.5" />
+                                            <span className="hidden sm:inline">Xóa Khách</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -535,7 +563,7 @@ const ConsignmentTable: React.FC = () => {
                                                     {visibleColumns.includes('actions') && <td className="px-4 py-3 whitespace-nowrap text-xs">
                                                         <div className="flex gap-1">
                                                             <button onClick={() => handleOpenModal(item)} className="p-1.5 hover:bg-white rounded-lg text-primary-600 transition-colors border border-transparent hover:border-primary-100"><EditIcon className="w-4 h-4" /></button>
-                                                            <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-white rounded-lg text-red-600 transition-colors border border-transparent hover:border-red-100"><TrashIcon className="w-4 h-4" /></button>
+                                                            {isAdmin && <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-white rounded-lg text-red-600 transition-colors border border-transparent hover:border-red-100"><TrashIcon className="w-4 h-4" /></button>}
                                                         </div>
                                                     </td>}
                                                 </tr>
@@ -598,7 +626,7 @@ const ConsignmentTable: React.FC = () => {
                                                 </div>
                                                 <div className="flex gap-1 shrink-0">
                                                     <button onClick={() => handleOpenModal(item)} className="p-1.5 bg-white rounded-lg text-primary-600 shadow-sm border border-gray-100"><EditIcon className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-white rounded-lg text-red-600 shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>
+                                                    {isAdmin && <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-white rounded-lg text-red-600 shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>}
                                                 </div>
                                             </div>
 

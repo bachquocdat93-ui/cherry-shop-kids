@@ -32,6 +32,10 @@ const InvoicesTable = () => {
     const receiptRef = useRef<HTMLDivElement>(null);
     const [exportingInvoice, setExportingInvoice] = useState<Invoice | null>(null);
 
+    const currentUserData = window.localStorage.getItem('currentUser');
+    const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
+    const isAdmin = currentUser?.role === 'ADMIN';
+
     useEffect(() => {
         const handleStorageChange = () => {
             const latest = window.localStorage.getItem('invoicesData');
@@ -140,6 +144,10 @@ const InvoicesTable = () => {
     };
 
     const handleDelete = (id: string) => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         const invoice = invoices.find(i => i.id === id);
         if (invoice && window.confirm('Bạn có chắc chắn muốn xóa hóa đơn này?\nKho hàng sẽ được cộng lại số lượng tương ứng.')) {
             // Revert Stock
@@ -199,6 +207,10 @@ const InvoicesTable = () => {
     };
 
     const handleBulkDelete = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} hóa đơn đã chọn?\nKho hàng sẽ được cộng lại số lượng tương ứng.`)) {
             // Revert Stock loop
             try {
@@ -494,7 +506,7 @@ const InvoicesTable = () => {
                             <button onClick={() => setSelectedIds([])} className="ml-1 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase underline">Hủy</button>
                         </div>
                     )}
-                    {selectedIds.length > 0 && (
+                    {selectedIds.length > 0 && isAdmin && (
                         <button onClick={handleBulkDelete} className="bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-200 hover:bg-red-100 transition-colors shadow-sm font-bold text-sm flex items-center gap-2">
                             <TrashIcon className="w-5 h-5" /> Xóa ({selectedIds.length})
                         </button>
@@ -624,13 +636,15 @@ const InvoicesTable = () => {
                                             >
                                                 <EditIcon />
                                             </button>
-                                            <button
-                                                onClick={() => handleDelete(invoice.id)}
-                                                className="p-1.5 text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100"
-                                                title="Xóa hóa đơn"
-                                            >
-                                                <TrashIcon />
-                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleDelete(invoice.id)}
+                                                    className="p-1.5 text-red-600 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-red-100"
+                                                    title="Xóa hóa đơn"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </div>

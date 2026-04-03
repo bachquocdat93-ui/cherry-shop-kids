@@ -15,6 +15,10 @@ const ShopInventoryTable = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+    const currentUserData = window.localStorage.getItem('currentUser');
+    const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
+    const isAdmin = currentUser?.role === 'ADMIN';
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
@@ -35,6 +39,10 @@ const ShopInventoryTable = () => {
     };
 
     const handleDelete = (id: string) => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi kho?')) {
             setShopItems(prev => prev.filter(i => i.id !== id));
             setSelectedIds(prev => prev.filter(selId => selId !== id));
@@ -132,6 +140,10 @@ const ShopInventoryTable = () => {
     };
 
     const handleBulkDelete = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đang chọn?`)) {
             setShopItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
             setSelectedIds([]);
@@ -146,7 +158,7 @@ const ShopInventoryTable = () => {
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-gray-800">Kho Hàng Shop</h2>
                 <div className="flex gap-2">
-                    {selectedIds.length > 0 && (
+                    {selectedIds.length > 0 && isAdmin && (
                         <button onClick={handleBulkDelete} className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors shadow-sm font-bold">
                             <TrashIcon className="w-5 h-5" /> Xóa {selectedIds.length} mục
                         </button>
@@ -160,20 +172,22 @@ const ShopInventoryTable = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <p className="text-xs font-bold text-blue-400 uppercase">Tổng Vốn Tồn Kho</p>
-                    <p className="text-2xl font-black text-blue-700">{formatCurrency(totalInventoryValue)}</p>
+            {isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <p className="text-xs font-bold text-blue-400 uppercase">Tổng Vốn Tồn Kho</p>
+                        <p className="text-2xl font-black text-blue-700">{formatCurrency(totalInventoryValue)}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                        <p className="text-xs font-bold text-green-400 uppercase">Tổng Giá Trị Bán Lẻ</p>
+                        <p className="text-2xl font-black text-green-700">{formatCurrency(totalPotentialRevenue)}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                        <p className="text-xs font-bold text-purple-400 uppercase">Tổng Sản Phẩm</p>
+                        <p className="text-2xl font-black text-purple-700">{filteredItems.reduce((acc, i) => acc + i.quantity, 0)}</p>
+                    </div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                    <p className="text-xs font-bold text-green-400 uppercase">Tổng Giá Trị Bán Lẻ</p>
-                    <p className="text-2xl font-black text-green-700">{formatCurrency(totalPotentialRevenue)}</p>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-                    <p className="text-xs font-bold text-purple-400 uppercase">Tổng Sản Phẩm</p>
-                    <p className="text-2xl font-black text-purple-700">{filteredItems.reduce((acc, i) => acc + i.quantity, 0)}</p>
-                </div>
-            </div>
+            )}
 
             <div className="mb-6 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -204,7 +218,7 @@ const ShopInventoryTable = () => {
                             <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Tổng Nhập</th>
                             <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Đã Bán</th>
                             <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Tồn Kho</th>
-                            <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Giá Nhập</th>
+                            {isAdmin && <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Giá Nhập</th>}
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Giá Bán</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Ghi Chú</th>
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Hành Động</th>
@@ -236,12 +250,12 @@ const ShopInventoryTable = () => {
                                             {item.quantity}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatCurrency(item.importPrice)}</td>
+                                    {isAdmin && <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatCurrency(item.importPrice)}</td>}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-primary">{formatCurrency(item.retailPrice)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-xs truncate">{item.note}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button onClick={() => handleOpenModal(item)} className="text-primary hover:text-primary-900 mr-3"><EditIcon className="w-5 h-5" /></button>
-                                        <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900"><TrashIcon className="w-5 h-5" /></button>
+                                        {isAdmin && <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-900"><TrashIcon className="w-5 h-5" /></button>}
                                     </td>
                                 </tr>
                             );

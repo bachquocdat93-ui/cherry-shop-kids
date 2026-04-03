@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { pushToCloud, pullFromCloud } from '../utils/supabaseService';
 import { SyncIcon, UsersIcon, UploadIcon, MenuIcon, CloseIcon } from './Icons';
-import type { Page } from '../types';
+import type { Page, UserAccount } from '../types';
 
 interface HeaderProps {
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
   onOpenSyncModal: () => void;
+  currentUser: UserAccount;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSyncModal }) => {
+const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSyncModal, currentUser }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navItems: { id: Page; label: string, icon?: React.ReactNode }[] = [
+  const rawNavItems: { id: Page; label: string; icon?: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'revenue', label: 'Doanh thu' },
     { id: 'invoices', label: 'Hóa đơn' },
@@ -20,7 +21,15 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
     { id: 'customers', label: 'Khách hàng', icon: <UsersIcon className="w-4 h-4 mr-1" /> },
     { id: 'reports', label: 'Báo cáo' },
     { id: 'inventory', label: 'Kho Hàng' },
+    { id: 'staff', label: 'Nhân sự' },
   ];
+
+  const navItems = rawNavItems.filter(item => {
+    if (currentUser.role === 'STAFF') {
+      return item.id !== 'dashboard' && item.id !== 'reports' && item.id !== 'staff';
+    }
+    return true;
+  });
 
   const handlePush = async () => {
     if (!window.confirm("Bạn có chắc muốn ĐẨY dữ liệu lên Cloud?")) return;
@@ -83,11 +92,13 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
 
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden lg:flex items-center gap-4">
-              <div className="flex bg-white/10 rounded-lg p-1 mr-2">
-                <button onClick={handlePull} className="p-2 hover:bg-white/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1" title="Tải về máy">
-                  <SyncIcon className="w-4 h-4" /> Cloud Về
-                </button>
-              </div>
+              {currentUser.role === 'ADMIN' && (
+                <div className="flex bg-white/10 rounded-lg p-1 mr-2">
+                  <button onClick={handlePull} className="p-2 hover:bg-white/20 rounded-md transition-colors text-xs font-bold flex items-center gap-1" title="Tải về máy">
+                    <SyncIcon className="w-4 h-4" /> Cloud Về
+                  </button>
+                </div>
+              )}
 
               <nav className="flex flex-wrap justify-center items-center space-x-1 sm:space-x-2 bg-white/10 rounded-full p-1">
                 {navItems.map((item) => (
@@ -106,14 +117,16 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
               </nav>
             </div>
 
-            {/* Always visible Cloud Config */}
-            <button
-              onClick={onOpenSyncModal}
-              className="p-2 rounded-full transition-colors duration-200 bg-white/10 hover:bg-white/20"
-              title="Cấu hình Cloud / Excel"
-            >
-              <UsersIcon className="w-5 h-5" />
-            </button>
+            {/* Always visible Cloud Config for ADMIN */}
+            {currentUser.role === 'ADMIN' && (
+              <button
+                onClick={onOpenSyncModal}
+                className="p-2 rounded-full transition-colors duration-200 bg-white/10 hover:bg-white/20"
+                title="Cấu hình Cloud / Excel"
+              >
+                <UsersIcon className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -123,12 +136,16 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
         <div className="lg:hidden absolute top-full left-0 w-full bg-white text-gray-800 shadow-xl border-t border-gray-100 animate-in slide-in-from-top-2">
           <div className="p-4 flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <button onClick={handlePull} className="p-3 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors">
-                <SyncIcon className="w-4 h-4" /> Pull Cloud
-              </button>
-              <button onClick={onOpenSyncModal} className="p-3 bg-gray-50 text-gray-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
-                <UsersIcon className="w-4 h-4" /> Cấu hình
-              </button>
+              {currentUser.role === 'ADMIN' && (
+                <>
+                  <button onClick={handlePull} className="p-3 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors">
+                    <SyncIcon className="w-4 h-4" /> Pull Cloud
+                  </button>
+                  <button onClick={onOpenSyncModal} className="p-3 bg-gray-50 text-gray-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
+                    <UsersIcon className="w-4 h-4" /> Cấu hình
+                  </button>
+                </>
+              )}
             </div>
             <div className="space-y-1">
               <p className="px-4 text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Menu chính</p>

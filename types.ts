@@ -67,6 +67,16 @@ export interface CustomerInfo {
   address?: string;
 }
 
+export type UserRole = 'ADMIN' | 'STAFF';
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  passwordHash: string; // Storing plain string for offline/mock auth
+  role: UserRole;
+  fullName: string;
+}
+
 export interface ShopItem {
   id: string;
   productName: string;
@@ -76,4 +86,4 @@ export interface ShopItem {
   note?: string;
 }
 
-export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers' | 'inventory';
+export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers' | 'inventory' | 'staff';

@@ -36,6 +36,10 @@ const RevenueTable: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const currentUserData = window.localStorage.getItem('currentUser');
+    const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
+    const isAdmin = currentUser?.role === 'ADMIN';
+
     const syncWithInvoices = (entry: RevenueEntry, action: 'add' | 'update' | 'remove') => {
         try {
             const rawInvoices = window.localStorage.getItem('invoicesData');
@@ -213,6 +217,10 @@ const RevenueTable: React.FC = () => {
     };
 
     const handleDelete = (id: string) => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         const entry = revenueData.find(e => e.id === id);
         if (entry && window.confirm('Bạn có chắc chắn muốn xóa mục này?\nKho hàng sẽ được hoàn lại số lượng.')) {
             // Reversal Logic
@@ -273,6 +281,10 @@ const RevenueTable: React.FC = () => {
     };
 
     const handleBulkDelete = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         const count = selectedIds.length;
         if (window.confirm(`Bạn có chắc muốn xóa ${count} mục doanh thu đã chọn?\nKho hàng sẽ được hoàn lại số lượng.`)) {
             // Process reversal for each item
@@ -407,6 +419,10 @@ const RevenueTable: React.FC = () => {
     };
 
     const handleClearAll = () => {
+        if (!isAdmin) {
+            alert('Bạn không có quyền thực hiện chức năng xóa!');
+            return;
+        }
         if (window.confirm(`BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ DOANH THU THÁNG ${selectedMonth}?\nHành động này không thể khôi phục!`)) {
             setRevenueData(prev => prev.filter(e => !e.date.startsWith(selectedMonth)));
         }
@@ -597,7 +613,7 @@ const RevenueTable: React.FC = () => {
                             </div>
                         )}
 
-                        {selectedIds.length > 0 && (
+                        {selectedIds.length > 0 && isAdmin && (
                             <button onClick={handleBulkDelete} className="whitespace-nowrap bg-red-50 text-red-600 px-3 py-2 rounded-xl border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1 shadow-sm font-bold text-xs">
                                 <TrashIcon className="w-4 h-4" /> (Xóa {selectedIds.length})
                             </button>
@@ -626,6 +642,7 @@ const RevenueTable: React.FC = () => {
                                 />
                             </th>
                             {REVENUE_COLUMNS.map(col => visibleColumns.includes(col.key) && (
+                                (!isAdmin && (col.key === 'costPrice' || col.key === 'profit' || col.key === 'total')) ? null :
                                 <th key={col.key} className={`px-2 py-3 text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200 
                                     ${['costPrice', 'retailPrice', 'total', 'profit'].includes(col.key) ? 'text-right' : 'text-left'}
                                     ${['quantity', 'actions'].includes(col.key) ? 'text-center' : ''}
@@ -658,11 +675,11 @@ const RevenueTable: React.FC = () => {
                                     {visibleColumns.includes('date') && <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>}
                                     {visibleColumns.includes('customerName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-gray-900 border-b border-gray-50">{entry.customerName || 'Vãng lai'}</td>}
                                     {visibleColumns.includes('productName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px] border-b border-gray-50" title={entry.productName}>{entry.productName}</td>}
-                                    {visibleColumns.includes('costPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-400 text-right italic border-b border-gray-50">{formatCurrency(entry.costPrice)}</td>}
+                                    {isAdmin && visibleColumns.includes('costPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-400 text-right italic border-b border-gray-50">{formatCurrency(entry.costPrice)}</td>}
                                     {visibleColumns.includes('retailPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-bold text-right border-b border-gray-50">{formatCurrency(entry.retailPrice)}</td>}
                                     {visibleColumns.includes('quantity') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-center font-black border-b border-gray-50">{entry.quantity}</td>}
-                                    {visibleColumns.includes('total') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-teal-700 text-right border-b border-gray-50">{formatCurrency(total)}</td>}
-                                    {visibleColumns.includes('profit') && <td className={`px-2 py-3 whitespace-nowrap text-[11px] font-black text-right border-b border-gray-50 ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</td>}
+                                    {isAdmin && visibleColumns.includes('total') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-teal-700 text-right border-b border-gray-50">{formatCurrency(total)}</td>}
+                                    {isAdmin && visibleColumns.includes('profit') && <td className={`px-2 py-3 whitespace-nowrap text-[11px] font-black text-right border-b border-gray-50 ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</td>}
                                     {visibleColumns.includes('consignor') && <td className="px-2 py-3 whitespace-nowrap text-[10px] font-bold text-purple-600 truncate max-w-[80px] border-b border-gray-50">{entry.consignor || '-'}</td>}
                                     {visibleColumns.includes('status') && <td className="px-2 py-3 whitespace-nowrap border-b border-gray-50">
                                         <select
@@ -685,7 +702,7 @@ const RevenueTable: React.FC = () => {
                                                 </button>
                                             )}
                                             <button onClick={() => handleOpenModal(entry)} className="p-1 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><EditIcon className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => handleDelete(entry.id)} className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                                            {isAdmin && <button onClick={() => handleDelete(entry.id)} className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>}
                                         </div>
                                     </td>}
                                 </tr>
@@ -731,9 +748,9 @@ const RevenueTable: React.FC = () => {
                                         <p className="text-[10px] text-gray-400 font-bold">{entry.date.split('-').reverse().join('/')}</p>
                                     </div>
                                 </div>
-                                <div className="flexgap-1">
+                                <div className="flex gap-1 items-center">
                                     <button onClick={() => handleOpenModal(entry)} className="p-1.5 text-primary-600 bg-white rounded-lg shadow-sm border border-gray-100"><EditIcon className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDelete(entry.id)} className="p-1.5 text-red-600 bg-white rounded-lg shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>
+                                    {isAdmin && <button onClick={() => handleDelete(entry.id)} className="p-1.5 text-red-600 bg-white rounded-lg shadow-sm border border-gray-100"><TrashIcon className="w-4 h-4" /></button>}
                                 </div>
                             </div>
 
@@ -742,7 +759,7 @@ const RevenueTable: React.FC = () => {
                                 {isConsignment && <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold">KG: {entry.consignor}</span>}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2 bg-white/50 p-2 rounded-lg mb-2">
+                            <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-2 bg-white/50 p-2 rounded-lg mb-2`}>
                                 <div className="text-center">
                                     <p className="text-[9px] text-gray-400 uppercase">Giá bán</p>
                                     <p className="font-bold text-xs">{formatCurrency(entry.retailPrice)}</p>
@@ -751,10 +768,12 @@ const RevenueTable: React.FC = () => {
                                     <p className="text-[9px] text-gray-400 uppercase">SL</p>
                                     <p className="font-bold text-xs">{entry.quantity}</p>
                                 </div>
-                                <div className="text-center border-l border-gray-200">
-                                    <p className="text-[9px] text-gray-400 uppercase">Tổng</p>
-                                    <p className="font-bold text-xs text-teal-700">{formatCurrency(total)}</p>
-                                </div>
+                                {isAdmin && (
+                                    <div className="text-center border-l border-gray-200">
+                                        <p className="text-[9px] text-gray-400 uppercase">Tổng</p>
+                                        <p className="font-bold text-xs text-teal-700">{formatCurrency(total)}</p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between gap-2">
@@ -767,10 +786,12 @@ const RevenueTable: React.FC = () => {
                                     <option value={RevenueStatus.SHIPPING}>Đang đi</option>
                                     <option value={RevenueStatus.DELIVERED}>Đã giao</option>
                                 </select>
-                                <div className="text-right">
-                                    <p className="text-[9px] text-gray-400 uppercase">Lãi</p>
-                                    <p className={`font-black text-sm ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</p>
-                                </div>
+                                {isAdmin && (
+                                    <div className="text-right">
+                                        <p className="text-[9px] text-gray-400 uppercase">Lãi</p>
+                                        <p className={`font-black text-sm ${entry.status === RevenueStatus.DELIVERED ? 'text-orange-600' : 'text-gray-300'}`}>{formatCurrency(rowFinalProfit)}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )
@@ -779,26 +800,28 @@ const RevenueTable: React.FC = () => {
                 )}
             </div>
 
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-teal-50 border-b-4 border-teal-500 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-                    <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-teal-500 w-24 h-24 rounded-full"></div>
-                    <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-1">Doanh Thu Tháng {selectedMonth}</p>
-                    <p className="text-3xl font-black text-teal-900">{formatCurrency(stats.totalRevenue)}</p>
-                    <p className="text-[10px] text-teal-700 mt-2 font-bold">{stats.count} sản phẩm được bán</p>
+            {isAdmin && (
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="bg-teal-50 border-b-4 border-teal-500 p-6 rounded-3xl shadow-sm relative overflow-hidden">
+                        <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-teal-500 w-24 h-24 rounded-full"></div>
+                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-1">Doanh Thu Tháng {selectedMonth}</p>
+                        <p className="text-3xl font-black text-teal-900">{formatCurrency(stats.totalRevenue)}</p>
+                        <p className="text-[10px] text-teal-700 mt-2 font-bold">{stats.count} sản phẩm được bán</p>
+                    </div>
+                    <div className="bg-orange-50 border-b-4 border-orange-400 p-6 rounded-3xl shadow-sm relative overflow-hidden">
+                        <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-orange-500 w-24 h-24 rounded-full"></div>
+                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Lãi Dự Kiến (Full Giao)</p>
+                        <p className="text-3xl font-black text-orange-900">{formatCurrency(stats.totalFinalProfitAll)}</p>
+                        <p className="text-[10px] text-orange-700 mt-2 font-bold italic">Bao gồm cả ký gửi 20%</p>
+                    </div>
+                    <div className="bg-yellow-50 border-b-4 border-yellow-500 p-6 rounded-3xl shadow-md ring-4 ring-yellow-400/20 relative overflow-hidden">
+                        <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-yellow-500 w-24 h-24 rounded-full"></div>
+                        <p className="text-[10px] font-black text-yellow-700 uppercase tracking-widest mb-1">Lãi Thực Thu (Đã Giao)</p>
+                        <p className="text-4xl font-black text-yellow-900 tracking-tighter">{formatCurrency(stats.totalDeliveredProfit)}</p>
+                        <p className="text-[10px] text-yellow-800 mt-2 font-black italic underline decoration-yellow-300 underline-offset-4">Tiền lãi thực tế trong tay</p>
+                    </div>
                 </div>
-                <div className="bg-orange-50 border-b-4 border-orange-400 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-                    <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-orange-500 w-24 h-24 rounded-full"></div>
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Lãi Dự Kiến (Full Giao)</p>
-                    <p className="text-3xl font-black text-orange-900">{formatCurrency(stats.totalFinalProfitAll)}</p>
-                    <p className="text-[10px] text-orange-700 mt-2 font-bold italic">Bao gồm cả ký gửi 20%</p>
-                </div>
-                <div className="bg-yellow-50 border-b-4 border-yellow-500 p-6 rounded-3xl shadow-md ring-4 ring-yellow-400/20 relative overflow-hidden">
-                    <div className="absolute top-[-10px] right-[-10px] opacity-10 bg-yellow-500 w-24 h-24 rounded-full"></div>
-                    <p className="text-[10px] font-black text-yellow-700 uppercase tracking-widest mb-1">Lãi Thực Thu (Đã Giao)</p>
-                    <p className="text-4xl font-black text-yellow-900 tracking-tighter">{formatCurrency(stats.totalDeliveredProfit)}</p>
-                    <p className="text-[10px] text-yellow-800 mt-2 font-black italic underline decoration-yellow-300 underline-offset-4">Tiền lãi thực tế trong tay</p>
-                </div>
-            </div>
+            )}
 
             {isModalOpen && <RevenueModal entry={editingEntry} onSave={handleSave} onClose={handleCloseModal} />}
             {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} title="Nhập dữ liệu Doanh thu" instructions={<ul className="list-disc list-inside"><li>Cột: Ngày (YYYY-MM-DD), Tên SP, Giá Bán, SL</li><li>Mặc định dùng ngày hiện tại nếu thiếu cột Ngày.</li></ul>} onDownloadTemplate={generateRevenueTemplate} />}

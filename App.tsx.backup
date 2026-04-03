@@ -9,35 +9,12 @@ import ReportsPage from './components/ReportsPage';
 import CustomersPage from './components/CustomersPage';
 import SheetSyncModal from './components/SheetSyncModal';
 import AutoSyncManager from './components/AutoSyncManager';
-import Login from './components/Login';
-import StaffManager from './components/StaffManager';
-import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo, UserAccount } from './types';
+import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo } from './types';
 import type { Page } from './types';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-
-  useEffect(() => {
-    // Check if user is already logged in
-    const savedSession = localStorage.getItem('currentUser');
-    if (savedSession) {
-        try {
-            setCurrentUser(JSON.parse(savedSession));
-        } catch (e) {
-            localStorage.removeItem('currentUser');
-        }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentUser?.role === 'STAFF') {
-        if (currentPage === 'dashboard' || currentPage === 'reports') {
-            setCurrentPage('revenue');
-        }
-    }
-  }, [currentUser, currentPage]);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -55,8 +32,6 @@ const App: React.FC = () => {
         return <ReportsPage />;
       case 'customers':
         return <CustomersPage />;
-      case 'staff':
-        return <StaffManager />;
       default:
         return <Dashboard />;
     }
@@ -86,15 +61,6 @@ const App: React.FC = () => {
     window.location.reload();
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    setCurrentUser(null);
-  };
-
-  if (!currentUser) {
-      return <Login onLoginSuccess={setCurrentUser} />;
-  }
-
   return (
     <div className="h-screen bg-gray-100 text-gray-800 flex flex-col">
       <AutoSyncManager />
@@ -102,17 +68,7 @@ const App: React.FC = () => {
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
-        currentUser={currentUser}
       />
-      <div className="absolute top-4 right-4 z-50">
-        <button 
-          onClick={handleLogout}
-          className="bg-white/80 backdrop-blur border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg shadow-sm text-xs font-bold hover:bg-slate-50 transition-colors flex items-center gap-2"
-        >
-          <span className="w-2 h-2 rounded-full bg-green-500"></span>
-          {currentUser.fullName} (Đăng xuất)
-        </button>
-      </div>
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {renderPage()}
       </main>
