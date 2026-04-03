@@ -20,6 +20,9 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
   const [shippingFee, setShippingFee] = useState(invoice?.shippingFee || 0);
   const [discount, setDiscount] = useState(invoice?.discount || 0);
 
+  const [isAddingDeposit, setIsAddingDeposit] = useState(false);
+  const [additionalDeposit, setAdditionalDeposit] = useState<number>(0);
+
   const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
   const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
   const [customersData] = useLocalStorage<CustomerInfo[]>('customersData', []);
@@ -286,16 +289,48 @@ const InvoiceModal = ({ invoice, onSave, onClose }: InvoiceModalProps) => {
                   min="0"
                 />
               </div>
-              <div className="md:col-span-1">
-                <label htmlFor="deposit" className="block text-sm font-medium text-gray-700">Đã cọc</label>
+              <div className="md:col-span-1 rounded-xl p-3 bg-orange-50 border border-orange-100 shadow-sm relative">
+                <div className="flex justify-between items-center mb-2">
+                  <label htmlFor="deposit" className="block text-xs uppercase font-black text-orange-800 tracking-widest">Đã cọc</label>
+                  <button type="button" onClick={() => setIsAddingDeposit(!isAddingDeposit)} className="text-[9px] text-orange-700 font-black bg-orange-200 px-2 py-1 rounded shadow-sm hover:bg-orange-300 transition-colors">
+                    + Cọc thêm
+                  </button>
+                </div>
                 <input
                   type="number"
                   id="deposit"
                   value={deposit}
                   onChange={(e) => setDeposit(parseFloat(e.target.value) || 0)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm text-orange-600 font-bold"
+                  className="block w-full rounded-lg border-orange-200 shadow-inner focus:border-orange-500 focus:ring-orange-500 sm:text-sm text-orange-600 font-extrabold bg-white"
                   min="0"
                 />
+                {isAddingDeposit && (
+                  <div className="mt-3 flex items-stretch gap-2 animate-fade-in absolute w-[105%] -left-[2.5%] z-10 bg-white p-2 rounded-xl shadow-xl border border-orange-200">
+                    <input 
+                      type="number" 
+                      placeholder="Số tiền..." 
+                      value={additionalDeposit || ''}
+                      onChange={(e) => setAdditionalDeposit(parseFloat(e.target.value) || 0)}
+                      className="block w-full text-sm rounded-lg border-orange-200 shadow-inner focus:border-orange-500 focus:ring-orange-500 font-bold text-orange-800" 
+                      autoFocus
+                      onKeyDown={(e) => {
+                         if (e.key === 'Enter') {
+                            e.preventDefault();
+                            setDeposit(prev => prev + additionalDeposit);
+                            setAdditionalDeposit(0);
+                            setIsAddingDeposit(false);
+                         }
+                      }}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => { setDeposit(prev => prev + additionalDeposit); setAdditionalDeposit(0); setIsAddingDeposit(false); }}
+                      className="px-3 bg-orange-500 text-white text-xs uppercase font-black rounded-lg hover:bg-orange-600 whitespace-nowrap shadow-sm"
+                    >
+                      Cộng
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
