@@ -103,16 +103,9 @@ const App: React.FC = () => {
         setCurrentPage={setCurrentPage}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
         currentUser={currentUser}
+        onLogout={handleLogout}
       />
-      <div className="absolute top-4 right-4 z-50">
-        <button 
-          onClick={handleLogout}
-          className="bg-white/80 backdrop-blur border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg shadow-sm text-xs font-bold hover:bg-slate-50 transition-colors flex items-center gap-2"
-        >
-          <span className="w-2 h-2 rounded-full bg-green-500"></span>
-          {currentUser.fullName} (Đăng xuất)
-        </button>
-      </div>
+
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {renderPage()}
       </main>

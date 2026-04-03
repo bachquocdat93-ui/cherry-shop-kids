@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { pushToCloud, pullFromCloud } from '../utils/supabaseService';
+import { pushToCloud, pullFromCloud, getCloudConfig } from '../utils/supabaseService';
 import { SyncIcon, UsersIcon, UploadIcon, MenuIcon, CloseIcon } from './Icons';
 import type { Page, UserAccount } from '../types';
 
@@ -8,10 +8,14 @@ interface HeaderProps {
   setCurrentPage: (page: Page) => void;
   onOpenSyncModal: () => void;
   currentUser: UserAccount;
+  onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSyncModal, currentUser }) => {
+const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSyncModal, currentUser, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const hasCloudConfig = !!getCloudConfig();
+  const showConfigButton = currentUser.role === 'ADMIN' || !hasCloudConfig;
 
   const rawNavItems: { id: Page; label: string; icon?: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -121,8 +125,8 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
               </nav>
             </div>
 
-            {/* Always visible Cloud Config for ADMIN */}
-            {currentUser.role === 'ADMIN' && (
+            {/* Always visible for ADMIN. For STAFF, hide once configured */}
+            {showConfigButton && (
               <button
                 onClick={onOpenSyncModal}
                 className="p-2 rounded-full transition-colors duration-200 bg-white/10 hover:bg-white/20"
@@ -131,6 +135,20 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
                 <UsersIcon className="w-5 h-5" />
               </button>
             )}
+
+            <div className="h-6 w-px bg-white/20 mx-1"></div>
+
+            <button 
+              onClick={onLogout}
+              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full shadow-sm text-xs font-bold transition-colors flex items-center gap-2 border border-white/10 group"
+              title="Đăng xuất"
+            >
+              <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
+              <span className="max-w-[100px] truncate hidden sm:inline">{currentUser.fullName}</span>
+              <svg className="w-4 h-4 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -140,16 +158,19 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
         <div className="lg:hidden absolute top-full left-0 w-full bg-white text-gray-800 shadow-xl border-t border-gray-100 animate-in slide-in-from-top-2">
           <div className="p-4 flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-2 mb-4">
-              {currentUser.role === 'ADMIN' && (
-                <>
-                  <button onClick={handlePull} className="p-3 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors">
-                    <SyncIcon className="w-4 h-4" /> Pull Cloud
-                  </button>
-                  <button onClick={onOpenSyncModal} className="p-3 bg-gray-50 text-gray-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
-                    <UsersIcon className="w-4 h-4" /> Cấu hình
-                  </button>
-                </>
+              {showConfigButton && (
+                <button onClick={onOpenSyncModal} className="p-3 bg-gray-50 text-gray-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
+                  <UsersIcon className="w-4 h-4" /> Cấu hình
+                </button>
               )}
+              {currentUser.role === 'ADMIN' && (
+                <button onClick={handlePull} className="p-3 bg-blue-50 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors">
+                  <SyncIcon className="w-4 h-4" /> Pull Cloud
+                </button>
+              )}
+              <button onClick={onLogout} className="col-span-2 p-3 bg-red-50 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors mt-2">
+                Đăng xuất
+              </button>
             </div>
             <div className="space-y-1">
               <p className="px-4 text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Menu chính</p>
