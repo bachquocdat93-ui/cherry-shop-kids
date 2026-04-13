@@ -130,6 +130,15 @@ const ReportsPage: React.FC = () => {
 
     // Consignment Analysis Logic
     const consignmentStats = useMemo(() => {
+        const getEffectiveQty = (item: ConsignmentItem) => {
+            if (item.isFee) return 1;
+            if (item.soldQuantity !== undefined && item.soldQuantity > 0) return item.soldQuantity;
+            if ((item.status === ConsignmentStatus.SOLD || item.status === ConsignmentStatus.DEPOSITED) && item.quantity === 0) {
+                return 1;
+            }
+            return item.quantity;
+        };
+
         let totalItems = 0;
         let totalQuantity = 0;
 
@@ -145,51 +154,46 @@ const ReportsPage: React.FC = () => {
         let pendingPayout = 0;
 
         consignmentData.forEach(item => {
-            const qty = item.quantity;
-            const soldQty = item.soldQuantity || 0;
-            const effectiveQuantity = qty + soldQty;
+            const effQty = getEffectiveQty(item);
+            const isFee = item.isFee || false;
             
+            // For general count, we add up everything (ignoring fee rows as actual "items" sent if you prefer, but usually we just count all)
+            if (!isFee) {
+                totalQuantity += item.quantity + (item.soldQuantity || 0); // Original stock sent
+            }
             totalItems++;
-            totalQuantity += effectiveQuantity;
 
-            // Handle status properly based on qty and soldQty
             const nameKey = item.customerName || 'Không xác định';
             if (!consignorPerformance[nameKey]) {
                 consignorPerformance[nameKey] = { sent: 0, sold: 0, revenue: 0 };
             }
-            
-            consignorPerformance[nameKey].sent += effectiveQuantity;
 
-            let soldForThisItem = 0;
+            if (!isFee) {
+                consignorPerformance[nameKey].sent += item.quantity + (item.soldQuantity || 0);
+            }
 
+            // Strictly filter by status as in ConsignmentTable "Thanh toán" feature
             if (item.status === ConsignmentStatus.SOLD) {
-                soldForThisItem = soldQty > 0 ? soldQty : (qty > 0 ? qty : 1);
-                statusCounts[ConsignmentStatus.SOLD] += soldForThisItem;
+                if (!isFee) {
+                    statusCounts[ConsignmentStatus.SOLD] += effQty;
+                    consignorPerformance[nameKey].sold += effQty;
+                }
+                
+                const amountAfterFee = isFee ? -item.consignmentPrice : (item.consignmentPrice * (1 - item.consignmentFee / 100)) * effQty;
+                const totalValueSold = isFee ? 0 : item.consignmentPrice * effQty;
+                
+                const profitPerItem = isFee ? item.consignmentPrice : (totalValueSold - amountAfterFee);
+                
+                consignorPerformance[nameKey].revenue += profitPerItem;
+                shopConsignmentRevenue += profitPerItem;
+                pendingPayout += amountAfterFee;
+                
             } else if (item.status === ConsignmentStatus.DEPOSITED) {
-                statusCounts[ConsignmentStatus.DEPOSITED] += qty;
+                if (!isFee) statusCounts[ConsignmentStatus.DEPOSITED] += effQty;
             } else if (item.status === ConsignmentStatus.RETURNED) {
-                statusCounts[ConsignmentStatus.RETURNED] += qty;
+                if (!isFee) statusCounts[ConsignmentStatus.RETURNED] += item.quantity;
             } else {
-                statusCounts[ConsignmentStatus.IN_STOCK] += qty;
-            }
-            
-            // Partially sold items that are still functionally in stock/deposited but have sold quantities
-            if (item.status !== ConsignmentStatus.SOLD && soldQty > 0) {
-                 soldForThisItem = soldQty;
-                 statusCounts[ConsignmentStatus.SOLD] += soldQty;
-                 // Don't double count remaining stock if we accidentally assigned it above
-                 // wait, the amount was added to IN_STOCK, so we keep status counts matching totalQuantity.
-            }
-
-            if (soldForThisItem > 0) {
-                consignorPerformance[nameKey].sold += soldForThisItem;
-                
-                const revenueForShop = (item.consignmentPrice * (item.consignmentFee / 100) * soldForThisItem) || 0;
-                const payoutToCustomer = (item.consignmentPrice * (1 - item.consignmentFee / 100) * soldForThisItem) || 0;
-                
-                consignorPerformance[nameKey].revenue += revenueForShop;
-                shopConsignmentRevenue += revenueForShop;
-                pendingPayout += payoutToCustomer;
+                if (!isFee) statusCounts[ConsignmentStatus.IN_STOCK] += item.quantity;
             }
         });
 
