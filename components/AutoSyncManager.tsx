@@ -43,6 +43,10 @@ const AutoSyncManager: React.FC = () => {
                         localStorage.setItem('accountsData', JSON.stringify(data.accounts));
                         window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'accountsData' } }));
                     }
+                    if (data.auditLogs) {
+                        localStorage.setItem('auditLogsData', JSON.stringify(data.auditLogs));
+                        window.dispatchEvent(new CustomEvent('local-data-change', { detail: { key: 'auditLogsData' } }));
+                    }
                     setStatus('pulled');
                     setTimeout(() => setStatus('idle'), 3000);
                 } else {
@@ -65,7 +69,7 @@ const AutoSyncManager: React.FC = () => {
             const key = customEvent.detail?.key;
 
             // Only sync if these specific data keys change
-            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData', 'customersInfoData', 'accountsData'];
+            const watchedKeys = ['revenueData', 'invoicesData', 'consignmentData', 'shopInventoryData', 'customersInfoData', 'accountsData', 'auditLogsData'];
             if (!key || !watchedKeys.includes(key)) return;
 
             // Check if Cloud is configured
@@ -83,8 +87,9 @@ const AutoSyncManager: React.FC = () => {
                     const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
                     const customersInfo = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
                     const accounts = JSON.parse(localStorage.getItem('accountsData') || '[]');
+                    const auditLogs = JSON.parse(localStorage.getItem('auditLogsData') || '[]');
 
-                    await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo, accounts });
+                    await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo, accounts, auditLogs });
 
                     setStatus('saved');
                     setLastSaved(new Date());

@@ -26,11 +26,12 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
     { id: 'reports', label: 'Báo cáo' },
     { id: 'inventory', label: 'Kho Hàng' },
     { id: 'staff', label: 'Nhân sự' },
+    { id: 'logs', label: 'Nhật ký' },
   ];
 
   const navItems = rawNavItems.filter(item => {
     if (currentUser.role === 'STAFF') {
-      return item.id !== 'dashboard' && item.id !== 'reports' && item.id !== 'staff';
+      return item.id !== 'dashboard' && item.id !== 'reports' && item.id !== 'staff' && item.id !== 'logs';
     }
     return true;
   });
@@ -43,8 +44,9 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
       const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
       const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
       const accounts = JSON.parse(localStorage.getItem('accountsData') || '[]');
+      const auditLogs = JSON.parse(localStorage.getItem('auditLogsData') || '[]');
 
-      await pushToCloud({ revenue, invoices, consignment, inventory, accounts });
+      await pushToCloud({ revenue, invoices, consignment, inventory, accounts, auditLogs });
       alert("Đã đẩy dữ liệu lên Cloud thành công!");
     } catch (e: any) {
       alert("Lỗi: " + e.message);
@@ -64,6 +66,9 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
         }
         if (data.accounts) {
           window.localStorage.setItem('accountsData', JSON.stringify(data.accounts));
+        }
+        if (data.auditLogs) {
+          window.localStorage.setItem('auditLogsData', JSON.stringify(data.auditLogs));
         }
         alert("Đã tải dữ liệu thành công! Trang sẽ tải lại.");
         window.location.reload();

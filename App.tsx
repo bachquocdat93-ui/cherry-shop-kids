@@ -11,6 +11,7 @@ import SheetSyncModal from './components/SheetSyncModal';
 import AutoSyncManager from './components/AutoSyncManager';
 import Login from './components/Login';
 import StaffManager from './components/StaffManager';
+import ActivityLogManager from './components/ActivityLogManager';
 import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo, UserAccount } from './types';
 import type { Page } from './types';
 
@@ -57,6 +58,8 @@ const App: React.FC = () => {
         return <CustomersPage />;
       case 'staff':
         return <StaffManager />;
+      case 'logs':
+        return <ActivityLogManager />;
       default:
         return <Dashboard />;
     }
@@ -68,6 +71,8 @@ const App: React.FC = () => {
     consignmentData: ConsignmentItem[];
     shopInventoryData?: ShopItem[];
     customersInfoData?: CustomerInfo[];
+    accountsData?: any[];
+    auditLogsData?: any[];
   }) => {
     // Overwrite all data in local storage
     window.localStorage.setItem('revenueData', JSON.stringify(data.revenueData));
@@ -78,6 +83,12 @@ const App: React.FC = () => {
     }
     if (data.customersInfoData) {
       window.localStorage.setItem('customersInfoData', JSON.stringify(data.customersInfoData));
+    }
+    if (data.accountsData) {
+      window.localStorage.setItem('accountsData', JSON.stringify(data.accountsData));
+    }
+    if (data.auditLogsData) {
+      window.localStorage.setItem('auditLogsData', JSON.stringify(data.auditLogsData));
     }
 
     // Close modal and reload to reflect changes everywhere

@@ -130,53 +130,75 @@ const ReportsPage: React.FC = () => {
 
     // Consignment Analysis Logic
     const consignmentStats = useMemo(() => {
-        // Filter by date (if items have created date - assuming we mostly care about current status logic)
-        // Since consignment doesn't have a specific "date" field in valid range, we might just show ALL current state 
-        // OR filtering by items that are actively in the system. 
-        // For this dashboard, showing the CURRENT SNAPSHOT of the consignment db is usually more useful.
+        let totalItems = 0;
+        let totalQuantity = 0;
 
-        const totalItems = consignmentData.length;
-        const totalQuantity = consignmentData.reduce((sum, i) => sum + i.quantity, 0);
-
-        const statusCounts = {
+        const statusCounts: Record<string, number> = {
             [ConsignmentStatus.IN_STOCK]: 0,
             [ConsignmentStatus.SOLD]: 0,
             [ConsignmentStatus.RETURNED]: 0,
             [ConsignmentStatus.DEPOSITED]: 0,
         };
 
-        consignmentData.forEach(item => {
-            if (statusCounts[item.status] !== undefined) {
-                statusCounts[item.status] += item.quantity;
-            }
-        });
-
-        // Financials
-        // Shop Revenue = Sold Items * Price * Fee%
-        const shopConsignmentRevenue = consignmentData
-            .filter(i => i.status === ConsignmentStatus.SOLD)
-            .reduce((sum, i) => sum + (i.consignmentPrice * (i.consignmentFee / 100) * i.quantity), 0);
-
-        // Pending Payout = Sold Items * Price * (1 - Fee%)
-        const pendingPayout = consignmentData
-            .filter(i => i.status === ConsignmentStatus.SOLD)
-            .reduce((sum, i) => sum + (i.consignmentPrice * (1 - i.consignmentFee / 100) * i.quantity), 0);
-
-        // Top Consignors
         const consignorPerformance: { [name: string]: { sent: number, sold: number, revenue: number } } = {};
+        let shopConsignmentRevenue = 0;
+        let pendingPayout = 0;
+
         consignmentData.forEach(item => {
-            if (!consignorPerformance[item.customerName]) {
-                consignorPerformance[item.customerName] = { sent: 0, sold: 0, revenue: 0 };
+            const qty = item.quantity;
+            const soldQty = item.soldQuantity || 0;
+            const effectiveQuantity = qty + soldQty;
+            
+            totalItems++;
+            totalQuantity += effectiveQuantity;
+
+            // Handle status properly based on qty and soldQty
+            const nameKey = item.customerName || 'Không xác định';
+            if (!consignorPerformance[nameKey]) {
+                consignorPerformance[nameKey] = { sent: 0, sold: 0, revenue: 0 };
             }
-            consignorPerformance[item.customerName].sent += item.quantity;
+            
+            consignorPerformance[nameKey].sent += effectiveQuantity;
+
+            let soldForThisItem = 0;
+
             if (item.status === ConsignmentStatus.SOLD) {
-                consignorPerformance[item.customerName].sold += item.quantity;
-                consignorPerformance[item.customerName].revenue += (item.consignmentPrice * (item.consignmentFee / 100) * item.quantity);
+                soldForThisItem = soldQty > 0 ? soldQty : (qty > 0 ? qty : 1);
+                statusCounts[ConsignmentStatus.SOLD] += soldForThisItem;
+            } else if (item.status === ConsignmentStatus.DEPOSITED) {
+                statusCounts[ConsignmentStatus.DEPOSITED] += qty;
+            } else if (item.status === ConsignmentStatus.RETURNED) {
+                statusCounts[ConsignmentStatus.RETURNED] += qty;
+            } else {
+                statusCounts[ConsignmentStatus.IN_STOCK] += qty;
+            }
+            
+            // Partially sold items that are still functionally in stock/deposited but have sold quantities
+            if (item.status !== ConsignmentStatus.SOLD && soldQty > 0) {
+                 soldForThisItem = soldQty;
+                 statusCounts[ConsignmentStatus.SOLD] += soldQty;
+                 // Don't double count remaining stock if we accidentally assigned it above
+                 // wait, the amount was added to IN_STOCK, so we keep status counts matching totalQuantity.
+            }
+
+            if (soldForThisItem > 0) {
+                consignorPerformance[nameKey].sold += soldForThisItem;
+                
+                const revenueForShop = (item.consignmentPrice * (item.consignmentFee / 100) * soldForThisItem) || 0;
+                const payoutToCustomer = (item.consignmentPrice * (1 - item.consignmentFee / 100) * soldForThisItem) || 0;
+                
+                consignorPerformance[nameKey].revenue += revenueForShop;
+                shopConsignmentRevenue += revenueForShop;
+                pendingPayout += payoutToCustomer;
             }
         });
 
         const topConsignors = Object.entries(consignorPerformance)
-            .sort(([, a], [, b]) => b.revenue - a.revenue)
+            // Sort by revenue descending, if equal, sort by total sold descending
+            .sort(([, a], [, b]) => {
+                if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+                return b.sold - a.sold;
+            })
             .map(([name, stats]) => ({ name, ...stats }));
 
         return {

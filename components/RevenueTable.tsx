@@ -9,6 +9,7 @@ import { generateRevenueTemplate } from '../utils/templateGenerator';
 import { generateRevenuePDF } from '../utils/pdfGenerator';
 import { generateUniqueId } from '../utils/helpers';
 import ColumnToggler from './ColumnToggler';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const initialData: RevenueEntry[] = [];
 
@@ -35,6 +36,7 @@ const RevenueTable: React.FC = () => {
     const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('revenueVisibleColumns', REVENUE_COLUMNS.map(c => c.key));
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const logAction = useAuditLog();
 
     const currentUserData = window.localStorage.getItem('currentUser');
     const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
@@ -171,6 +173,7 @@ const RevenueTable: React.FC = () => {
                 customerName: entry.customerName?.trim() || 'Khách lẻ'
             };
 
+            logAction('DOANH_THU', 'Cập nhật doanh thu', `${editingEntry.productName} -> ${entry.productName}`);
             setRevenueData(prev => prev.map(e => e.id === entry.id ? entryWithDefaultName : e));
             syncWithInvoices(entryWithDefaultName, 'update');
         } else {
@@ -178,6 +181,7 @@ const RevenueTable: React.FC = () => {
                 ...entry,
                 customerName: entry.customerName?.trim() || 'Khách lẻ'
             }));
+            logAction('DOANH_THU', 'Thêm doanh thu', `Đã thêm ${newEntries.length} mục`);
             setRevenueData(prev => [...prev, ...newEntries]);
             newEntries.forEach(entry => syncWithInvoices(entry, 'add'));
         }
@@ -188,6 +192,7 @@ const RevenueTable: React.FC = () => {
         const entry = revenueData.find(e => e.id === id);
         if (!entry) return;
 
+        logAction('DOANH_THU', 'Đổi trạng thái', `${entry.productName}: ${entry.status} -> ${newStatus}`);
         const updatedEntry = { ...entry, status: newStatus };
         setRevenueData(prev => prev.map(e => e.id === id ? updatedEntry : e));
 
@@ -223,6 +228,7 @@ const RevenueTable: React.FC = () => {
         }
         const entry = revenueData.find(e => e.id === id);
         if (entry && window.confirm('Bạn có chắc chắn muốn xóa mục này?\nKho hàng sẽ được hoàn lại số lượng.')) {
+            logAction('DOANH_THU', 'Xóa doanh thu', `${entry.productName} (Khách: ${entry.customerName})`);
             // Reversal Logic
             try {
                 if (entry.shopItemId) {
@@ -287,6 +293,7 @@ const RevenueTable: React.FC = () => {
         }
         const count = selectedIds.length;
         if (window.confirm(`Bạn có chắc muốn xóa ${count} mục doanh thu đã chọn?\nKho hàng sẽ được hoàn lại số lượng.`)) {
+            logAction('DOANH_THU', 'Xóa hàng loạt', `Đã xóa ${count} mục`);
             // Process reversal for each item
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');

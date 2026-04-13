@@ -12,6 +12,8 @@ interface SheetSyncModalProps {
     consignmentData: ConsignmentItem[];
     shopInventoryData?: ShopItem[];
     customersInfoData?: CustomerInfo[];
+    accountsData?: any[];
+    auditLogsData?: any[];
   }) => void;
 }
 
@@ -66,8 +68,10 @@ const SheetSyncModal: React.FC<SheetSyncModalProps> = ({ onClose, onImportSucces
       const consignment = JSON.parse(localStorage.getItem('consignmentData') || '[]');
       const inventory = JSON.parse(localStorage.getItem('shopInventoryData') || '[]');
       const customersInfo = JSON.parse(localStorage.getItem('customersInfoData') || '[]');
+      const accounts = JSON.parse(localStorage.getItem('accountsData') || '[]');
+      const auditLogs = JSON.parse(localStorage.getItem('auditLogsData') || '[]');
 
-      await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo });
+      await pushToCloud({ revenue, invoices, consignment, inventory, customersInfo, accounts, auditLogs });
       alert('Đã đồng bộ lên Cloud thành công!');
     } catch (err: any) {
       setError('Lỗi Cloud: ' + err.message);
@@ -87,7 +91,9 @@ const SheetSyncModal: React.FC<SheetSyncModalProps> = ({ onClose, onImportSucces
         invoicesData: data.invoices,
         consignmentData: data.consignment,
         shopInventoryData: data.inventory,
-        customersInfoData: data.customersInfo
+        customersInfoData: data.customersInfo,
+        accountsData: data.accounts,
+        auditLogsData: data.auditLogs
       });
       // FIX: Add curly braces to the catch block to fix syntax error.
     } catch (err: any) {

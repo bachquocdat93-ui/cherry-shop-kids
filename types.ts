@@ -86,4 +86,16 @@ export interface ShopItem {
   note?: string;
 }
 
-export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers' | 'inventory' | 'staff';
+export type AuditLogCategory = 'DOANH_THU' | 'HOA_DON' | 'KY_GUI' | 'KHO_HANG' | 'NHAN_SU' | 'HE_THONG';
+
+export interface AuditLog {
+  id: string;
+  timestamp: string; // ISO String
+  userFullName: string;
+  userRole: UserRole;
+  category: AuditLogCategory;
+  action: string;
+  details?: string;
+}
+
+export type Page = 'dashboard' | 'revenue' | 'invoices' | 'consignment' | 'reports' | 'customers' | 'inventory' | 'staff' | 'logs';
