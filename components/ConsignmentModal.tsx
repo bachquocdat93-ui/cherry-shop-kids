@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { ConsignmentItem, ConsignmentStatus } from '../types';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { ConsignmentItem, ConsignmentStatus, RevenueEntry } from '../types';
+import useLocalStorage from '../hooks/useLocalStorage';
 import { CloseIcon, TrashIcon, PlusIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
 
@@ -20,9 +21,35 @@ type ProductFormData = {
 };
 
 const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClose }) => {
+  const [consignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
+  const [revenueData] = useLocalStorage<RevenueEntry[]>('revenueData', []);
+
   const [commonData, setCommonData] = useState({
     customerName: item?.customerName || '',
   });
+
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
+  
+  const pastCustomers = useMemo(() => {
+     const names = new Set([
+         ...revenueData.map(item => item.customerName.trim()).filter(Boolean),
+         ...consignmentData.map(item => item.customerName.trim()).filter(Boolean),
+     ]);
+     return Array.from(names);
+  }, [revenueData, consignmentData]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+        setIsCustomerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const [productForm, setProductForm] = useState<ProductFormData>({
     id: item?.id || generateUniqueId(),
@@ -170,9 +197,41 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
           <div className="space-y-6">
              <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-purple-500"></div>
-                <div>
+                <div className="relative" ref={customerDropdownRef}>
                   <label htmlFor="customerName" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tên khách hàng <span className="text-red-500">*</span></label>
-                  <input type="text" id="customerName" name="customerName" value={commonData.customerName} onChange={handleCommonChange} disabled={!!item} className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold disabled:opacity-50 transition-all bg-white py-2.5 px-3" placeholder="Nguyễn Văn A..." />
+                  <input 
+                      type="text" 
+                      id="customerName" 
+                      name="customerName" 
+                      value={commonData.customerName} 
+                      onChange={(e) => {
+                          handleCommonChange(e);
+                          if (!item) setIsCustomerDropdownOpen(true);
+                      }} 
+                      onFocus={() => { if (!item) setIsCustomerDropdownOpen(true); }}
+                      disabled={!!item} 
+                      className="block w-full rounded-xl border-slate-200 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/10 text-sm font-bold disabled:opacity-50 transition-all bg-white py-2.5 px-3 relative z-10" 
+                      placeholder="Nguyễn Văn A..." 
+                      autoComplete="off"
+                  />
+                  {isCustomerDropdownOpen && !item && pastCustomers.filter(c => !commonData.customerName || c.toLowerCase().includes(commonData.customerName.toLowerCase())).length > 0 && (
+                      <ul className="absolute z-50 mt-1 w-full bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-48 rounded-xl py-2 text-base ring-1 ring-black ring-opacity-5 overflow-auto sm:text-sm border border-slate-100">
+                          {pastCustomers
+                              .filter(c => !commonData.customerName || c.toLowerCase().includes(commonData.customerName.toLowerCase()))
+                              .map(c => (
+                                  <li 
+                                      key={c} 
+                                      className="cursor-pointer hover:bg-primary-50 text-slate-800 font-bold select-none relative py-2.5 pl-4 pr-4 transition-colors"
+                                      onClick={() => {
+                                          setCommonData(prev => ({ ...prev, customerName: c }));
+                                          setIsCustomerDropdownOpen(false);
+                                      }}
+                                  >
+                                      {c}
+                                  </li>
+                          ))}
+                      </ul>
+                  )}
                 </div>
             </div>
 
