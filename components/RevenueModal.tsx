@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { RevenueEntry, RevenueStatus, ConsignmentItem, ShopItem, ConsignmentStatus } from '../types';
 import { CloseIcon, TrashIcon, PlusIcon, ShoppingBagIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
@@ -28,6 +28,7 @@ type ProductFormData = {
 const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) => {
   const [consignmentData, setConsignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
   const [shopInventoryData, setShopInventoryData] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
+  const [revenueData] = useLocalStorage<RevenueEntry[]>('revenueData', []);
 
   const [commonData, setCommonData] = useState({
     date: entry?.date || new Date().toISOString().slice(0, 10),
@@ -63,6 +64,47 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
   });
 
   const [addedItems, setAddedItems] = useState<ProductFormData[]>([]);
+
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const productDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isConsignorDropdownOpen, setIsConsignorDropdownOpen] = useState(false);
+  const [consignorSearchTerm, setConsignorSearchTerm] = useState('');
+  const consignorDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isShopItemDropdownOpen, setIsShopItemDropdownOpen] = useState(false);
+  const [shopItemSearchTerm, setShopItemSearchTerm] = useState('');
+  const shopItemDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
+        setIsProductDropdownOpen(false);
+      }
+      if (consignorDropdownRef.current && !consignorDropdownRef.current.contains(event.target as Node)) {
+        setIsConsignorDropdownOpen(false);
+      }
+      if (shopItemDropdownRef.current && !shopItemDropdownRef.current.contains(event.target as Node)) {
+        setIsShopItemDropdownOpen(false);
+      }
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+        setIsCustomerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const pastCustomers = useMemo(() => {
+     const names = new Set(revenueData.map(item => item.customerName.trim()).filter(Boolean));
+     return Array.from(names);
+  }, [revenueData]);
 
   const consignors = useMemo(() => {
     const names = new Set(consignmentData.map(item => item.customerName));
@@ -366,47 +408,207 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
              {/* PRODUCT SELECTION FORM */}
              <div className="flex flex-col gap-5 flex-1">
                 {productForm.source === 'shop' && (
-                  <div>
+                  <div ref={shopItemDropdownRef} className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tuỳ chọn sản phẩm trong kho <span className="text-red-500">*</span></label>
-                    <select value={productForm.shopItemId} onChange={(e) => handleShopItemChange(e.target.value)} className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm px-3 py-2 text-gray-900 cursor-pointer">
-                      <option value="">Lựa chọn sản phẩm...</option>
-                      {availableShopItems.map(item => (
-                        <option key={item.id} value={item.id} disabled={item.remainingQuantity <= 0}>
-                          {item.productName} 👉 {new Intl.NumberFormat('vi-VN').format(item.retailPrice)}đ (Tồn: {item.remainingQuantity})
-                        </option>
-                      ))}
-                    </select>
+                    <div 
+                        className="block w-full border border-gray-300 rounded-md shadow-sm sm:text-sm px-3 py-2 text-gray-900 cursor-pointer bg-white hover:border-gray-400"
+                        onClick={() => setIsShopItemDropdownOpen(!isShopItemDropdownOpen)}
+                    >
+                        {(() => {
+                           if (!productForm.shopItemId) return <span className="text-gray-400">Lựa chọn sản phẩm...</span>;
+                           const selected = availableShopItems.find(p => p.id === productForm.shopItemId);
+                           if (!selected) return <span className="text-gray-400">Lựa chọn sản phẩm...</span>;
+                           return <span className="truncate font-medium">{selected.productName} 👉 {new Intl.NumberFormat('vi-VN').format(selected.retailPrice)}đ (Tồn: {selected.remainingQuantity})</span>;
+                        })()}
+                        <svg className="absolute right-3 top-[34px] w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+
+                    {isShopItemDropdownOpen && (
+                        <div className="absolute z-50 mt-1 left-0 right-0 max-h-[50vh] bg-white shadow-2xl rounded-xl ring-1 ring-black ring-opacity-10 flex flex-col">
+                            <div className="p-3 border-b border-gray-100 shrink-0 sticky top-0 bg-white z-10 rounded-t-xl shadow-sm">
+                               <input 
+                                  type="text" 
+                                  className="block w-full border border-gray-300 rounded-lg shadow-sm sm:text-sm px-4 py-2.5 focus:ring-primary focus:border-primary bg-gray-50 placeholder-gray-400 transition-colors focus:bg-white" 
+                                  placeholder="🔍 Gõ tên sản phẩm để tìm..." 
+                                  value={shopItemSearchTerm}
+                                  onChange={(e) => setShopItemSearchTerm(e.target.value)}
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                               />
+                            </div>
+                            <ul className="overflow-auto py-2 text-base focus:outline-none sm:text-sm flex-1">
+                                <li className="text-gray-500 font-medium cursor-pointer select-none py-3 pl-4 pr-9 hover:bg-gray-100 transition-colors"
+                                    onClick={() => { handleShopItemChange(''); setIsShopItemDropdownOpen(false); }}>
+                                    Bỏ chọn...
+                                </li>
+                                {availableShopItems
+                                    .filter(item => !shopItemSearchTerm || item.productName.toLowerCase().includes(shopItemSearchTerm.toLowerCase()))
+                                    .map(item => {
+                                        const isDisabled = item.remainingQuantity <= 0;
+                                        return (
+                                            <li 
+                                                key={item.id} 
+                                                className={`${isDisabled ? 'cursor-not-allowed bg-gray-50/50 text-gray-400' : 'cursor-pointer hover:bg-primary-50 text-gray-900'} select-none relative py-3 pl-4 pr-4 border-b border-gray-50 last:border-0`}
+                                                onClick={() => { if (!isDisabled) { handleShopItemChange(item.id); setIsShopItemDropdownOpen(false); } }}
+                                            >
+                                                <div className="font-medium truncate">{item.productName}</div>
+                                                <div className="text-sm mt-1 text-gray-600">
+                                                    Giá: <span className="font-semibold">{new Intl.NumberFormat('vi-VN').format(item.retailPrice)}đ</span> <span className="ml-2 text-primary-600">(Tồn: {item.remainingQuantity})</span>
+                                                </div>
+                                            </li>
+                                        );
+                                })}
+                            </ul>
+                        </div>
+                    )}
                   </div>
                 )}
 
                 {productForm.source === 'consignor' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div ref={consignorDropdownRef} className="relative">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Khách gửi <span className="text-red-500">*</span></label>
-                        <select value={productForm.consignor} onChange={(e) => handleConsignorChange(e.target.value)} className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm px-3 py-2 text-gray-900 cursor-pointer">
-                            <option value="">Chọn người ký gửi...</option>
-                            {consignors.map(name => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Món hàng <span className="text-red-500">*</span></label>
-                        <select 
-                            value={productForm.consignmentItemId || ''}
-                            onChange={(e) => handleConsignedProductChange(e.target.value)} 
-                            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm px-3 py-2 text-gray-900 cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
-                            disabled={!productForm.consignor}
+                        
+                        <div 
+                            className="block w-full border border-gray-300 rounded-md shadow-sm sm:text-sm px-3 py-2 text-gray-900 cursor-pointer bg-white hover:border-gray-400"
+                            onClick={() => setIsConsignorDropdownOpen(!isConsignorDropdownOpen)}
                         >
-                            <option value="">Chọn món...</option>
-                            {availableConsignedProducts.map(p => {
-                              const isUnavailable = p.status === ConsignmentStatus.SOLD || p.status === ConsignmentStatus.DEPOSITED;
-                              const statusText = p.status === ConsignmentStatus.SOLD ? '[Đã bán]' : p.status === ConsignmentStatus.DEPOSITED ? '[Đã cọc]' : '';
+                            <div className="flex items-center gap-2 truncate pr-6 h-5">
+                                {productForm.consignor ? <span className="truncate font-medium">{productForm.consignor}</span> : <span className="text-gray-400">Chọn người ký gửi...</span>}
+                            </div>
+                            <svg className="absolute right-3 top-[34px] w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+
+                        {isConsignorDropdownOpen && (
+                            <div className="absolute z-50 mt-1 left-0 right-0 max-h-[40vh] bg-white shadow-2xl rounded-xl ring-1 ring-black ring-opacity-10 flex flex-col">
+                                <div className="p-3 border-b border-gray-100 shrink-0 sticky top-0 bg-white z-10 rounded-t-xl shadow-sm">
+                                   <input 
+                                      type="text" 
+                                      className="block w-full border border-gray-300 rounded-lg shadow-sm sm:text-sm px-4 py-2.5 focus:ring-primary focus:border-primary bg-gray-50 placeholder-gray-400 transition-colors focus:bg-white" 
+                                      placeholder="🔍 Gõ để tìm khách..." 
+                                      value={consignorSearchTerm}
+                                      onChange={(e) => setConsignorSearchTerm(e.target.value)}
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                   />
+                                </div>
+                                <ul className="overflow-auto py-2 text-base focus:outline-none sm:text-sm flex-1">
+                                    <li className="text-gray-500 font-medium cursor-pointer select-none py-3 pl-4 pr-9 hover:bg-gray-100 transition-colors"
+                                        onClick={() => { handleConsignorChange(''); setIsConsignorDropdownOpen(false); }}>
+                                        Bỏ chọn...
+                                    </li>
+                                    {consignors
+                                        .filter(name => !consignorSearchTerm || name.toLowerCase().includes(consignorSearchTerm.toLowerCase()))
+                                        .map(name => (
+                                            <li 
+                                                key={name} 
+                                                className="cursor-pointer hover:bg-primary-50 text-gray-900 select-none relative py-3 pl-4 pr-4 border-b border-gray-50 last:border-0 font-medium"
+                                                onClick={() => { handleConsignorChange(name); setIsConsignorDropdownOpen(false); }}
+                                            >
+                                                {name}
+                                            </li>
+                                        ))}
+                                    {consignors.filter(name => !consignorSearchTerm || name.toLowerCase().includes(consignorSearchTerm.toLowerCase())).length === 0 && (
+                                        <li className="py-4 text-center text-gray-500 text-sm">Không tìm thấy khách</li>
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                    <div ref={productDropdownRef} className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Món hàng <span className="text-red-500">*</span></label>
+                        <div 
+                           className={`block w-full border border-gray-300 rounded-md shadow-sm sm:text-sm px-3 py-2 text-gray-900 cursor-pointer ${!productForm.consignor ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'bg-white hover:border-gray-400'}`}
+                           onClick={() => {
+                              if (productForm.consignor) setIsProductDropdownOpen(!isProductDropdownOpen);
+                           }}
+                        >
+                           {(() => {
+                              if (!productForm.consignmentItemId) return <span className="text-gray-400">Chọn món...</span>;
+                              const selected = availableConsignedProducts.find(p => p.id === productForm.consignmentItemId);
+                              if (!selected) return <span className="text-gray-400">Chọn món...</span>;
                               return (
-                                <option key={p.id} value={p.id} disabled={p.remainingQuantity <= 0 || isUnavailable} style={{ color: isUnavailable ? '#ef4444' : 'inherit' }}>
-                                    {p.productName} {statusText} 👉 {new Intl.NumberFormat('vi-VN').format(p.consignmentPrice)}đ
-                                </option>
+                                 <div className="flex items-center gap-2 truncate pr-6">
+                                    {selected.imageUrl ? (
+                                        <img src={selected.imageUrl} alt="" className="w-5 h-5 object-cover rounded shrink-0 border border-gray-200" />
+                                    ) : (
+                                        <div className="w-5 h-5 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400 shrink-0 border border-gray-200">Trống</div>
+                                    )}
+                                    <span className="truncate">{selected.productName} 👉 {new Intl.NumberFormat('vi-VN').format(selected.consignmentPrice)}đ</span>
+                                 </div>
                               );
-                            })}
-                        </select>
+                           })()}
+                           
+                           <svg className="absolute right-3 top-[34px] w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        
+                        {isProductDropdownOpen && productForm.consignor && (
+                            <div className="absolute z-50 mt-1 -left-4 sm:left-auto right-0 sm:w-[450px] w-[calc(100vw-3rem)] max-w-[450px] bg-white shadow-2xl max-h-[50vh] rounded-xl ring-1 ring-black ring-opacity-10 flex flex-col origin-top-right">
+                                <div className="p-3 border-b border-gray-100 shrink-0 sticky top-0 bg-white z-10 rounded-t-xl shadow-sm">
+                                   <input 
+                                      type="text" 
+                                      className="block w-full border border-gray-300 rounded-lg shadow-sm sm:text-sm px-4 py-2.5 focus:ring-primary focus:border-primary bg-gray-50 placeholder-gray-400 transition-colors focus:bg-white" 
+                                      placeholder="🔍 Gõ tên món hàng để tìm nhanh..." 
+                                      value={productSearchTerm}
+                                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                   />
+                                </div>
+                                <ul className="overflow-auto py-2 text-base focus:outline-none sm:text-sm flex-1">
+                                    <li 
+                                        className="text-gray-500 font-medium cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-gray-100 transition-colors"
+                                        onClick={() => {
+                                            handleConsignedProductChange('');
+                                            setIsProductDropdownOpen(false);
+                                        }}
+                                    >
+                                        Bỏ chọn / Xóa lựa chọn...
+                                    </li>
+                                    {availableConsignedProducts
+                                        .filter(p => !productSearchTerm || p.productName.toLowerCase().includes(productSearchTerm.toLowerCase()))
+                                        .map(p => {
+                                            const isUnavailable = p.status === ConsignmentStatus.SOLD || p.status === ConsignmentStatus.DEPOSITED;
+                                            const statusText = p.status === ConsignmentStatus.SOLD ? '[Đã bán]' : p.status === ConsignmentStatus.DEPOSITED ? '[Đã cọc]' : '';
+                                            const isDisabled = p.remainingQuantity <= 0 || isUnavailable;
+                                            
+                                            return (
+                                                <li 
+                                                    key={p.id} 
+                                                    className={`${isDisabled ? 'cursor-not-allowed bg-gray-50/50' : 'cursor-pointer hover:bg-primary-50'} flex items-center gap-4 select-none relative py-3 pl-4 pr-4 transition-colors border-b border-gray-50 last:border-0`}
+                                                    onClick={() => {
+                                                        if (!isDisabled) {
+                                                            handleConsignedProductChange(p.id);
+                                                            setIsProductDropdownOpen(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="shrink-0 w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
+                                                        {p.imageUrl ? (
+                                                            <img src={p.imageUrl} alt={p.productName} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-gray-400 text-xs text-center leading-tight">Chưa có<br/>ảnh</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                       <span className={`block text-[15px] font-medium truncate ${isDisabled ? 'text-gray-400' : 'text-gray-900'} ${isUnavailable ? 'line-through text-red-400' : ''}`}>
+                                                           {p.productName}
+                                                       </span>
+                                                       <span className={`block text-sm mt-1 ${isUnavailable ? 'text-red-500 font-semibold' : 'text-gray-600 font-semibold'}`}>
+                                                           {statusText} {new Intl.NumberFormat('vi-VN').format(p.consignmentPrice)}đ
+                                                       </span>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    {availableConsignedProducts.filter(p => !productSearchTerm || p.productName.toLowerCase().includes(productSearchTerm.toLowerCase())).length === 0 && (
+                                        <div className="py-8 text-center text-gray-500 text-sm">
+                                            Không tìm thấy môn hàng nào phù hợp.
+                                        </div>
+                                    )}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -461,9 +663,39 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
             <div className={`p-6 pb-2 ${entry ? '' : 'bg-transparent'}`}>
                 <h4 className="text-base font-medium text-gray-900 mb-4">Thông tin thanh toán</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 relative" ref={customerDropdownRef}>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Họ tên khách hàng</label>
-                    <input type="text" name="customerName" value={commonData.customerName} onChange={handleCommonChange} className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm py-2 px-3 text-gray-900 placeholder-gray-400" placeholder="vd: Chị Nguyễn Trà My" />
+                    <input 
+                        type="text" 
+                        name="customerName" 
+                        value={commonData.customerName} 
+                        onChange={(e) => {
+                            handleCommonChange(e);
+                            setIsCustomerDropdownOpen(true);
+                        }} 
+                        onFocus={() => setIsCustomerDropdownOpen(true)}
+                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm py-2 px-3 text-gray-900 placeholder-gray-400" 
+                        placeholder="vd: Chị Nguyễn Trà My" 
+                        autoComplete="off"
+                    />
+                    {isCustomerDropdownOpen && pastCustomers.filter(c => !commonData.customerName || c.toLowerCase().includes(commonData.customerName.toLowerCase())).length > 0 && (
+                        <ul className="absolute z-50 mt-1 w-full bg-white shadow-xl max-h-48 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto sm:text-sm">
+                            {pastCustomers
+                                .filter(c => !commonData.customerName || c.toLowerCase().includes(commonData.customerName.toLowerCase()))
+                                .map(c => (
+                                    <li 
+                                        key={c} 
+                                        className="cursor-pointer hover:bg-primary-50 text-gray-900 select-none relative py-2 pl-3 pr-4"
+                                        onClick={() => {
+                                            setCommonData(prev => ({ ...prev, customerName: c }));
+                                            setIsCustomerDropdownOpen(false);
+                                        }}
+                                    >
+                                        {c}
+                                    </li>
+                            ))}
+                        </ul>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Ngày lập đơn</label>
