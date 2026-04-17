@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { ConsignmentItem, ConsignmentStatus, RevenueEntry } from '../types';
+import { ConsignmentItem, ConsignmentStatus } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { CloseIcon, TrashIcon, PlusIcon } from './Icons';
 import { generateUniqueId } from '../utils/helpers';
@@ -22,7 +22,6 @@ type ProductFormData = {
 
 const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClose }) => {
   const [consignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
-  const [revenueData] = useLocalStorage<RevenueEntry[]>('revenueData', []);
 
   const [commonData, setCommonData] = useState({
     customerName: item?.customerName || '',
@@ -32,12 +31,11 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
   const customerDropdownRef = useRef<HTMLDivElement>(null);
   
   const pastCustomers = useMemo(() => {
-     const names = new Set([
-         ...revenueData.map(item => item.customerName.trim()).filter(Boolean),
-         ...consignmentData.map(item => item.customerName.trim()).filter(Boolean),
-     ]);
+     const names = new Set(
+         consignmentData.map(item => item.customerName.trim()).filter(Boolean)
+     );
      return Array.from(names);
-  }, [revenueData, consignmentData]);
+  }, [consignmentData]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -195,8 +193,8 @@ const ConsignmentModal: React.FC<ConsignmentModalProps> = ({ item, onSave, onClo
             <button onClick={onClose} className="text-slate-400 hover:text-red-500 p-2 bg-slate-50 hover:bg-red-50 rounded-full transition-all"><CloseIcon className="w-4 h-4" /></button>
           </div>
           <div className="space-y-6">
-             <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-purple-500"></div>
+             <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 shadow-sm relative group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-purple-500 rounded-l-2xl"></div>
                 <div className="relative" ref={customerDropdownRef}>
                   <label htmlFor="customerName" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tên khách hàng <span className="text-red-500">*</span></label>
                   <input 
