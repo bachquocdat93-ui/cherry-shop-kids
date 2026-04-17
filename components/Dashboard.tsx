@@ -20,30 +20,41 @@ interface KpiCardProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
-  gradientClass: string;
+  colorTheme: 'blue' | 'pink' | 'amber' | 'indigo';
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ title, value, icon, gradientClass, trend, trendValue }) => (
-  <div className={`relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group ring-1 ring-slate-100`}>
-    <div className={`absolute top-0 right-0 w-32 h-32 ${gradientClass} opacity-10 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500`}></div>
-    <div className="flex items-center justify-between relative z-10">
-      <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{title}</p>
-        <div className="flex items-end gap-2">
-           <p className="text-2xl font-black text-slate-800">{value}</p>
-           {trend && trendValue && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mb-1 ${trend === 'up' ? 'bg-green-100 text-green-700' : trend === 'down' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                 {trend === 'up' ? '▲' : trend === 'down' ? '▼' : '▬'} {trendValue}%
-              </span>
-           )}
+const KpiCard: React.FC<KpiCardProps> = ({ title, value, icon, colorTheme, trend, trendValue }) => {
+  const themes = {
+    blue: 'text-blue-600 bg-blue-50 border-blue-100',
+    pink: 'text-pink-600 bg-pink-50 border-pink-100',
+    amber: 'text-amber-600 bg-amber-50 border-amber-100',
+    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-44 relative overflow-hidden group">
+      {/* Subtle background glow */}
+      <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 rounded-full transition-transform duration-700 group-hover:scale-150 ${themes[colorTheme].split(' ')[0]}`}></div>
+      
+      <div className="flex justify-between items-start relative z-10">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${themes[colorTheme]} backdrop-blur-xl [&>svg]:w-7 [&>svg]:h-7`}>
+          {icon}
         </div>
+        {trend && trendValue && (
+          <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : trend === 'down' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-50 text-slate-600 border border-slate-100'}`}>
+            {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '—'} {trendValue}%
+          </div>
+        )}
       </div>
-      <div className={`p-4 rounded-xl ${gradientClass} text-white shadow-md group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>{icon}</div>
+      <div className="relative z-10 mt-4">
+        <p className="text-3xl font-black text-slate-800 tracking-tight">{value}</p>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1.5">{title}</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const getCurrentGreeting = () => {
   const hour = new Date().getHours();
@@ -61,59 +72,68 @@ interface ChartData {
 
 const RevenueProfitChart: React.FC<{ data: ChartData[] }> = ({ data }) => {
   return (
-    <div className="w-full h-[460px] bg-white rounded-[2.5rem] p-8 relative overflow-hidden shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] border border-slate-100">
-      {/* Soft elegant background meshes */}
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-100/50 rounded-full mix-blend-multiply filter blur-[80px] -z-0 translate-x-1/3 -translate-y-1/3"></div>
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-pink-100/40 rounded-full mix-blend-multiply filter blur-[80px] -z-0 -translate-x-1/3 translate-y-1/3"></div>
+    <div className="w-full h-[500px] bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col relative overflow-hidden">
+      {/* Decorative background accent */}
+      <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-gradient-to-bl from-blue-50/50 to-transparent blur-3xl -z-0 pointer-events-none"></div>
 
-      <div className="flex items-center justify-between mb-10 z-10 relative px-2">
+      <div className="flex justify-between items-start mb-8 relative z-10">
         <div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight mb-1">Hiệu quả kinh doanh</h3>
-          <p className="text-xs font-bold text-slate-400">Tương quan Doanh Thu & Lợi Nhuận Gộp</p>
+          <h3 className="text-xl font-black text-slate-800 tracking-tight mb-1.5">Phân tích kinh doanh kết hợp</h3>
+          <p className="text-sm font-semibold text-slate-400">Xu hướng doanh thu & lợi nhuận 6 tháng qua</p>
         </div>
-        <div className="flex items-center gap-5 bg-white/80 px-4 py-3 rounded-2xl border border-slate-100 shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-2.5">
-            <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-b from-blue-400 to-blue-200"></div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Doanh thu</span>
+        <div className="flex gap-6 items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-blue-500 shadow-sm shadow-blue-500/20"></div>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doanh thu</span>
           </div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-3 h-3 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]"></div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lợi nhuận gộp</span>
+          <div className="flex items-center gap-2">
+             <div className="w-3 h-3 rounded-full bg-pink-500 shadow-[0_0_12px_rgba(236,72,153,0.4)]"></div>
+             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lợi nhuận gộp</span>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 w-full h-[320px] z-10 relative">
+      <div className="flex-1 w-full min-h-0 relative z-10">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 20, right: 10, bottom: 0, left: -10 }}>
+          <ComposedChart data={data} margin={{ top: 20, right: 0, bottom: 0, left: 0 }}>
             <defs>
-              <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.85}/>
-                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.15}/>
+              <linearGradient id="barGradBlue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.4}/>
               </linearGradient>
-              <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
             </defs>
-            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }} dy={15} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis 
+              dataKey="month" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }} 
+              dy={15} 
+            />
             <YAxis 
               axisLine={false} 
               tickLine={false} 
               tick={{ fill: '#cbd5e1', fontSize: 11, fontWeight: 700 }} 
               tickFormatter={(value) => formatShortCurrency(value)}
-              dx={-15}
+              dx={-10}
             />
             <Tooltip 
-              cursor={{ fill: '#f8fafc' }}
+              cursor={{ fill: '#f8fafc', opacity: 0.5 }}
               formatter={(value: number) => [formatCurrency(value), undefined]}
-              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid #f1f5f9', boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.08)', padding: '16px 20px' }}
-              itemStyle={{ fontWeight: 900, fontSize: '14px' }}
-              labelStyle={{ color: '#94a3b8', fontWeight: 900, marginBottom: '8px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}
+              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.1)', padding: '12px 16px' }}
+              itemStyle={{ fontWeight: 800, fontSize: '13px' }}
+              labelStyle={{ color: '#94a3b8', fontWeight: 700, marginBottom: '6px', fontSize: '11px' }}
             />
-            <Bar dataKey="revenue" name="Doanh thu" fill="url(#barGrad)" radius={[16, 16, 16, 16]} maxBarSize={48} />
-            <Line type="monotone" dataKey="profit" name="Lợi nhuận gộp" stroke="#ec4899" strokeWidth={5} filter="url(#softGlow)" dot={{ r: 0 }} activeDot={{ r: 8, fill: '#fff', stroke: '#ec4899', strokeWidth: 4 }} />
+            <Bar dataKey="revenue" name="Doanh thu" fill="url(#barGradBlue)" radius={[8, 8, 0, 0]} maxBarSize={40} />
+            <Line 
+              type="monotone" 
+              dataKey="profit" 
+              name="Lợi nhuận gộp" 
+              stroke="#ec4899" 
+              strokeWidth={4} 
+              dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#ec4899' }} 
+              activeDot={{ r: 6, fill: '#ec4899', stroke: '#fff', strokeWidth: 3 }} 
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -255,151 +275,151 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-4">
+    <div className="space-y-8 pb-10">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
         <div>
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-black tracking-widest uppercase mb-3 border border-blue-100 shadow-sm">
-             <span className="w-2 h-2 rounded-full bg-blue-500 mr-2 animate-pulse"></span>
-             Hệ thống CRM
-          </div>
           <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">{getCurrentGreeting()}, Quản trị viên!</h2>
           <p className="text-slate-500 font-medium">Hôm nay là {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'full' }).format(new Date())}. Chúc bạn buôn may bán đắt.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center bg-white px-5 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-gray-100">
           {isCloudConfigured && (
-            <div className="bg-purple-50 px-4 py-2 rounded-xl border border-purple-100 flex items-center gap-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-              <span className="text-[10px] font-black text-purple-700 uppercase">Cloud: Sẵn sàng</span>
+            <div className="flex items-center gap-2 border-r border-gray-100 pr-5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Cloud Sync</span>
             </div>
           )}
-          <div className="bg-green-50 px-4 py-2 rounded-xl border border-green-100 flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-black text-green-700 uppercase">Local Storage: An toàn</span>
+          <div className="flex items-center gap-2 border-r border-gray-100 pr-5 pl-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></span>
+            <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Local DB</span>
           </div>
           <button
             onClick={handleClearAll}
-            className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all font-bold text-xs uppercase"
+            className="flex items-center gap-2 text-rose-500 hover:text-rose-700 transition-colors font-bold text-[11px] uppercase tracking-widest pl-2 group"
           >
-            <TrashIcon className="w-3 h-3" />
-            Xóa sạch
+            <TrashIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+            <span className="hidden sm:inline">Xóa dữ liệu</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Tổng Doanh Thu" value={formatCurrency(dashboardData.totalRevenue)} icon={<DollarIcon />} gradientClass="bg-gradient-to-br from-blue-400 to-blue-600" trend={dashboardData.revenueGrowth >= 0 ? 'up' : 'down'} trendValue={Math.abs(dashboardData.revenueGrowth).toFixed(1)} />
-        <KpiCard title="Lợi Nhuận Gộp" value={formatCurrency(dashboardData.totalProfit)} icon={<ChartBarIcon />} gradientClass="bg-gradient-to-br from-pink-400 to-pink-600" trend={dashboardData.profitGrowth >= 0 ? 'up' : 'down'} trendValue={Math.abs(dashboardData.profitGrowth).toFixed(1)} />
-        <KpiCard title="Đơn Chờ Xử Lý" value={invoicesData.length} icon={<ShoppingBagIcon />} gradientClass="bg-gradient-to-br from-amber-400 to-amber-600" />
-        <KpiCard title="Hàng Ký Gửi" value={dashboardData.activeConsignments} icon={<UsersIcon />} gradientClass="bg-gradient-to-br from-indigo-400 to-indigo-600" />
+      {/* KPI SCROLL/GRID VIEW */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KpiCard title="Tổng Doanh Thu" value={formatCurrency(dashboardData.totalRevenue)} icon={<DollarIcon />} colorTheme="blue" trend={dashboardData.revenueGrowth >= 0 ? 'up' : 'down'} trendValue={Math.abs(dashboardData.revenueGrowth).toFixed(1)} />
+        <KpiCard title="Lợi Nhuận Gộp" value={formatCurrency(dashboardData.totalProfit)} icon={<ChartBarIcon />} colorTheme="pink" trend={dashboardData.profitGrowth >= 0 ? 'up' : 'down'} trendValue={Math.abs(dashboardData.profitGrowth).toFixed(1)} />
+        <KpiCard title="Đơn Chờ Xử Lý" value={invoicesData.length} icon={<ShoppingBagIcon />} colorTheme="amber" />
+        <KpiCard title="Hàng Ký Gửi" value={dashboardData.activeConsignments} icon={<UsersIcon />} colorTheme="indigo" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
+
+      {/* MAIN CONTENT DIVISIONS */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* LEFT COLUMN */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
           <RevenueProfitChart data={dashboardData.chartData} />
 
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-lg font-black text-slate-800 mb-5 tracking-tight border-l-4 border-primary pl-3">Hoạt động gần đây</h3>
-            <div className="space-y-3">
+          {/* RECENT ACTIVITY */}
+          <div className="bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
+            <div className="flex justify-between items-end mb-6">
+               <h3 className="text-xl font-black text-slate-800 tracking-tight">Giao dịch gần đây</h3>
+               <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-xl">Mới nhất</span>
+            </div>
+            <div className="space-y-4">
               {dashboardData.recentActivity.length > 0 ? dashboardData.recentActivity.map(entry => (
-                <div key={entry.id} className="flex items-center justify-between p-4 bg-white rounded-2xl hover:shadow-lg transition-all border border-slate-100 hover:border-blue-200 group">
+                <div key={entry.id} className="flex items-center justify-between p-4 bg-slate-50 border border-transparent hover:border-blue-100 rounded-2xl transition-all group">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-black text-lg shadow-inner">
-                      {new Date(entry.date).getDate()}
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-100 font-bold text-slate-600 shadow-sm group-hover:scale-105 transition-transform">
+                      <span className="text-xl">💳</span>
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800 mb-0.5">
                         {entry.customerName || 'Khách vãng lai'}
                       </p>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Mua <span className="text-blue-600 font-bold">{entry.productName}</span> ({entry.quantity})
+                      <p className="text-xs text-slate-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] sm:max-w-xs">
+                         <span className="font-bold text-slate-600">{entry.productName}</span> — SL: {entry.quantity}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                     <p className="text-sm font-black text-slate-800">{formatCurrency(entry.retailPrice * entry.quantity)}</p>
-                     <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest mt-0.5">Lãi: {formatCurrency((entry as any).calculatedProfit)}</p>
+                     <p className="text-[15px] font-black text-slate-800">{formatCurrency(entry.retailPrice * entry.quantity)}</p>
+                     <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">Lãi: {formatCurrency((entry as any).calculatedProfit)}</p>
                   </div>
                 </div>
-              )) : <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-3xl"><p className="text-sm font-bold text-slate-400">Chưa có giao dịch nào.</p></div>}
+              )) : <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-[2rem]"><p className="text-sm font-bold text-slate-400">Chưa có giao dịch nào.</p></div>}
             </div>
           </div>
         </div>
 
-        <div className="space-y-6">
+        {/* RIGHT COLUMN */}
+        <div className="lg:col-span-4 flex flex-col gap-8">
+          
           {/* Top Products */}
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-widest flex items-center gap-2"><span className="text-xl">🏆</span> Sản phẩm bán chạy</h3>
-            <div className="space-y-4">
+          <div className="bg-white p-7 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
+            <h3 className="text-sm font-black text-slate-800 mb-6 uppercase tracking-widest flex items-center gap-2">
+              <span className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg">🏆</span> Sản phẩm bán chạy
+            </h3>
+            <div className="space-y-4 cursor-default">
               {dashboardData.bestSellers.length > 0 ? dashboardData.bestSellers.map((item, idx) => (
                 <div key={item.name} className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${idx === 0 ? 'bg-yellow-100 text-yellow-600' : idx === 1 ? 'bg-slate-100 text-slate-500' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-blue-50 text-blue-500'}`}>
-                    {idx + 1}
+                  <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center font-black text-[13px] ${idx === 0 ? 'bg-yellow-50 text-yellow-600 border border-yellow-100/50' : idx === 1 ? 'bg-slate-50 text-slate-500 border border-slate-100/50' : idx === 2 ? 'bg-orange-50 text-orange-600 border border-orange-100/50' : 'bg-blue-50 text-blue-500 border border-blue-100/50'}`}>
+                    #{idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                    <p className="text-[10px] text-slate-400">{formatShortCurrency(item.revenue)}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{formatShortCurrency(item.revenue)}</p>
                   </div>
-                  <div className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                  <div className="text-[11px] font-black text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
                     {item.quantity} sp
                   </div>
                 </div>
-              )) : <p className="text-xs text-slate-400 italic">Chưa có dữ liệu.</p>}
+              )) : <p className="text-sm text-slate-400 font-medium">Chưa đủ dữ liệu.</p>}
             </div>
           </div>
 
           {/* Top Consignors */}
-          <div className="bg-purple-50 p-6 rounded-3xl shadow-sm border border-purple-100">
-            <h3 className="text-sm font-black text-purple-800 mb-4 uppercase tracking-widest flex items-center gap-2"><span className="text-xl">🌟</span> Top Chủ Ký Gửi</h3>
-            <div className="space-y-3">
+          <div className="bg-white p-7 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100/50 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none"></div>
+            <h3 className="text-sm font-black text-slate-800 mb-6 uppercase tracking-widest flex items-center gap-2 relative z-10">
+              <span className="p-1.5 bg-purple-100 text-purple-600 rounded-lg">🌟</span> Top Chủ Ký Gửi
+            </h3>
+            <div className="space-y-3 relative z-10">
               {dashboardData.topConsignors.length > 0 ? dashboardData.topConsignors.map((person, idx) => (
-                <div key={person.name} className="flex items-center justify-between bg-white/50 p-2.5 rounded-xl border border-purple-200">
-                   <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black text-purple-400">#{idx + 1}</span>
-                     <p className="text-xs font-bold text-purple-900">{person.name}</p>
+                <div key={person.name} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-transparent hover:border-purple-100 transition-colors">
+                   <div className="flex items-center gap-3">
+                     <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${idx === 0 ? 'bg-purple-100 text-purple-700' : 'text-slate-400'}`}>#{idx + 1}</span>
+                     <p className="text-[13px] font-bold text-slate-800">{person.name}</p>
                    </div>
-                   <span className="text-[10px] font-bold text-purple-600 bg-white px-2 py-1 rounded-md shadow-sm">{person.items} món</span>
+                   <span className="text-[10px] font-bold text-purple-600 bg-purple-100/50 border border-purple-100 px-2 py-1 rounded-md">{person.items} món</span>
                 </div>
-              )) : <p className="text-xs text-slate-400 italic">Chưa có khách ký gửi.</p>}
+              )) : <p className="text-sm text-slate-400 font-medium">Chưa đủ dữ liệu.</p>}
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/5 rounded-full"></div>
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <SyncIcon className="text-primary-400" />
-                <h3 className="text-lg font-bold">Trạng thái Đồng bộ</h3>
-              </div>
-
-              <div className="space-y-3">
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">File Excel gần nhất</p>
-                  <p className="text-xs font-bold text-green-400">
-                    {lastBackup ? new Date(lastBackup).toLocaleString('vi-VN') : 'Chưa từng xuất file'}
-                  </p>
+          {/* System Status / Support widget */}
+          <div className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+            <div className="absolute -right-8 -top-8 w-40 h-40 bg-blue-500/20 blur-3xl rounded-full pointer-events-none"></div>
+            <div className="relative z-10">
+              <h3 className="text-base font-bold mb-6 flex items-center gap-2">
+                <SyncIcon className="w-5 h-5 text-blue-400" /> Đồng bộ hệ thống
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Sao lưu thiết bị nội bộ</p>
+                  <p className="text-xs font-bold text-slate-100">{lastBackup ? new Date(lastBackup).toLocaleString('vi-VN') : '—'}</p>
                 </div>
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cloud Sync gần nhất</p>
-                  <p className="text-xs font-bold text-purple-400">
-                    {lastCloudSync ? new Date(lastCloudSync).toLocaleString('vi-VN') : 'Chưa đồng bộ online'}
-                  </p>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Đồng bộ Cloud</p>
+                  <p className="text-xs font-bold text-slate-100">{lastCloudSync ? new Date(lastCloudSync).toLocaleString('vi-VN') : '—'}</p>
                 </div>
               </div>
-            </div>
-
-            <div className="mt-6">
-              {!isCloudConfigured ? (
-                <div className="bg-orange-500/20 p-3 rounded-xl border border-orange-500/30 text-[10px] text-orange-200">
-                  ⚠️ Bạn chưa cài đặt Cloud. Dữ liệu chỉ đang lưu trên trình duyệt máy này.
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-[10px] text-green-400 font-bold uppercase tracking-tighter">
-                  <CheckCircleIcon className="w-3 h-3" />
-                  Đã kết nối dữ liệu đám mây
-                </div>
-              )}
             </div>
           </div>
+          
         </div>
       </div>
     </div>
