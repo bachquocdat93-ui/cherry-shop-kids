@@ -353,6 +353,7 @@ const RevenueTable: React.FC = () => {
             : `Bạn có chắc muốn đổi trạng thái ${selectedIds.length} mục thành "${newStatus}"?`;
 
         if (window.confirm(confirmMsg)) {
+            logAction('DOANH_THU', 'Đổi trạng thái hàng loạt', `${selectedIds.length} mục -> ${newStatus}`);
             const updatedData = [...revenueData];
             const shopDataRaw = window.localStorage.getItem('shopInventoryData');
             const consDataRaw = window.localStorage.getItem('consignmentData');
@@ -431,6 +432,7 @@ const RevenueTable: React.FC = () => {
             return;
         }
         if (window.confirm(`BẠN CÓ CHẮC MUỐN XÓA TẤT CẢ DOANH THU THÁNG ${selectedMonth}?\nHành động này không thể khôi phục!`)) {
+            logAction('DOANH_THU', 'Xóa toàn bộ tháng', `Tháng ${selectedMonth}`);
             setRevenueData(prev => prev.filter(e => !e.date.startsWith(selectedMonth)));
         }
     };
@@ -442,6 +444,7 @@ const RevenueTable: React.FC = () => {
             newData.forEach(item => {
                 if (item.customerName) syncWithInvoices(item, 'add');
             });
+            logAction('DOANH_THU', 'Nhập dữ liệu', `Đã nhập ${newData.length} mục từ Excel`);
             alert(`Đã nhập thành công ${newData.length} mục doanh thu.`);
         } catch (error: any) {
             alert(`Lỗi: ${error.message}`);
@@ -510,6 +513,7 @@ const RevenueTable: React.FC = () => {
     const handleReturn = (entry: RevenueEntry) => {
         if (window.confirm(`Khách trả lại sản phẩm "${entry.productName}"?\n\nNhấn OK để: \n1. Hoàn lại ${entry.quantity} sản phẩm vào kho.\n2. Đánh dấu đơn này là "Đã hoàn".\n3. Trừ doanh thu báo cáo.`)) {
             try {
+                logAction('DOANH_THU', 'Hoàn hàng', `${entry.productName} (SL: ${entry.quantity}) - Khách: ${entry.customerName}`);
                 // Return to stock Logic
                 if (entry.shopItemId) {
                     const shopDataRaw = window.localStorage.getItem('shopInventoryData');

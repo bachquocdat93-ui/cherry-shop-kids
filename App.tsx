@@ -14,11 +14,13 @@ import StaffManager from './components/StaffManager';
 import ActivityLogManager from './components/ActivityLogManager';
 import type { RevenueEntry, Invoice, ConsignmentItem, ShopItem, CustomerInfo, UserAccount } from './types';
 import type { Page } from './types';
+import { useAuditLog } from './hooks/useAuditLog';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const logAction = useAuditLog();
 
   useEffect(() => {
     // Check if user is already logged in
@@ -93,11 +95,13 @@ const App: React.FC = () => {
 
     // Close modal and reload to reflect changes everywhere
     setIsSyncModalOpen(false);
+    logAction('HE_THONG', 'Nhập dữ liệu', 'Đã nhập thành công từ Sheet/Cloud');
     alert('Nhập dữ liệu thành công! Ứng dụng sẽ được tải lại để cập nhật.');
     window.location.reload();
   };
 
   const handleLogout = () => {
+    logAction('HE_THONG', 'Đăng xuất', 'Người dùng đăng xuất');
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
   };

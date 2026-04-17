@@ -186,6 +186,53 @@ const ConsignmentTable: React.FC = () => {
         if (editingItem) {
             const item = itemsToSave[0];
             logAction('KY_GUI', 'Cập nhật mục ký gửi', `Sản phẩm: ${item.productName}`);
+            
+            // Sync with Revenue and Invoices
+            try {
+                const currentRevenueRaw = window.localStorage.getItem('revenueData');
+                if (currentRevenueRaw) {
+                    let currentRevenue: RevenueEntry[] = JSON.parse(currentRevenueRaw);
+                    let revenueChanged = false;
+                    currentRevenue = currentRevenue.map(rev => {
+                        const isMatch = rev.consignmentItemId === item.id || 
+                            (rev.consignor === editingItem.customerName && rev.productName === editingItem.productName && rev.retailPrice === editingItem.consignmentPrice);
+                        if (isMatch) {
+                            revenueChanged = true;
+                            if (rev.productName.startsWith('Phí ký gửi: ')) {
+                                return { ...rev, productName: `Phí ký gửi: ${item.productName}`, consignor: item.customerName };
+                            }
+                            return { ...rev, productName: item.productName, consignor: item.customerName, retailPrice: item.consignmentPrice, consignmentItemId: item.id };
+                        }
+                        return rev;
+                    });
+                    if (revenueChanged) {
+                        window.localStorage.setItem('revenueData', JSON.stringify(currentRevenue));
+                    }
+                }
+
+                const currentInvoicesRaw = window.localStorage.getItem('invoicesData');
+                if (currentInvoicesRaw) {
+                    let currentInvoices: any[] = JSON.parse(currentInvoicesRaw);
+                    let invoicesChanged = false;
+                    currentInvoices = currentInvoices.map(inv => {
+                        const newItems = inv.items.map((invItem: any) => {
+                            if (invItem.consignmentItemId === item.id || (invItem.productName === editingItem.productName && invItem.sellingPrice === editingItem.consignmentPrice)) {
+                                invoicesChanged = true;
+                                return { ...invItem, productName: item.productName, sellingPrice: item.consignmentPrice, consignmentItemId: item.id };
+                            }
+                            return invItem;
+                        });
+                        return { ...inv, items: newItems };
+                    });
+                    if (invoicesChanged) {
+                        window.localStorage.setItem('invoicesData', JSON.stringify(currentInvoices));
+                    }
+                }
+                window.dispatchEvent(new Event('storage'));
+            } catch (e) {
+                console.error("Lỗi đồng bộ khi cập nhật item ký gửi:", e);
+            }
+
             setItems(prev => prev.map(i => i.id === item.id ? item : i));
         } else {
             logAction('KY_GUI', 'Thêm mới ký gửi', `Đã thêm ${itemsToSave.length} mục`);

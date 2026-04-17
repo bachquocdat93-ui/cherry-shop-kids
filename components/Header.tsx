@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { pushToCloud, pullFromCloud, getCloudConfig } from '../utils/supabaseService';
 import { SyncIcon, UsersIcon, UploadIcon, MenuIcon, CloseIcon } from './Icons';
 import type { Page, UserAccount } from '../types';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 interface HeaderProps {
   currentPage: Page;
@@ -13,6 +14,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSyncModal, currentUser, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const logAction = useAuditLog();
   
   const hasCloudConfig = !!getCloudConfig();
   const showConfigButton = currentUser.role === 'ADMIN' || !hasCloudConfig;
@@ -47,8 +49,10 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
       const auditLogs = JSON.parse(localStorage.getItem('auditLogsData') || '[]');
 
       await pushToCloud({ revenue, invoices, consignment, inventory, accounts, auditLogs });
+      logAction('HE_THONG', 'Đẩy dữ liệu lên Cloud', 'Thành công');
       alert("Đã đẩy dữ liệu lên Cloud thành công!");
     } catch (e: any) {
+      logAction('HE_THONG', 'Lỗi đẩy Cloud', e.message);
       alert("Lỗi: " + e.message);
     }
   };
@@ -70,10 +74,12 @@ const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage, onOpenSync
         if (data.auditLogs) {
           window.localStorage.setItem('auditLogsData', JSON.stringify(data.auditLogs));
         }
+        logAction('HE_THONG', 'Tải dữ liệu từ Cloud', 'Thành công');
         alert("Đã tải dữ liệu thành công! Trang sẽ tải lại.");
         window.location.reload();
       }
     } catch (e: any) {
+      logAction('HE_THONG', 'Lỗi tải Cloud', e.message);
       alert("Lỗi: " + e.message);
     }
   }
