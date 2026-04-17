@@ -5,6 +5,7 @@ import { EditIcon, TrashIcon, PlusIcon, SearchIcon, UploadIcon } from './Icons';
 import ShopItemModal from './ShopItemModal';
 import ImportModal from './ImportModal';
 import { read, utils, writeFile } from 'xlsx';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const ShopInventoryTable = () => {
     const [shopItems, setShopItems] = useLocalStorage<ShopItem[]>('shopInventoryData', []);
@@ -19,6 +20,8 @@ const ShopInventoryTable = () => {
     const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
     const isAdmin = currentUser?.role === 'ADMIN';
 
+    const logAction = useAuditLog();
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
@@ -30,8 +33,10 @@ const ShopInventoryTable = () => {
 
     const handleSave = (item: ShopItem) => {
         if (editingItem) {
+            logAction('KHO_HANG', 'Cập nhật kho', `SP: ${item.productName}`);
             setShopItems(prev => prev.map(i => i.id === item.id ? item : i));
         } else {
+            logAction('KHO_HANG', 'Thêm vào kho', `SP: ${item.productName}`);
             setShopItems(prev => [...prev, item]);
         }
         setIsModalOpen(false);
@@ -44,6 +49,8 @@ const ShopInventoryTable = () => {
             return;
         }
         if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi kho?')) {
+            const item = shopItems.find(i => i.id === id);
+            logAction('KHO_HANG', 'Xóa kho hàng', item ? `SP: ${item.productName}` : '');
             setShopItems(prev => prev.filter(i => i.id !== id));
             setSelectedIds(prev => prev.filter(selId => selId !== id));
         }
@@ -104,6 +111,7 @@ const ShopInventoryTable = () => {
                     }
 
                     setShopItems(prev => [...prev, ...newItems]);
+                    logAction('KHO_HANG', 'Nhập kho bằng Excel', `SLL: ${newItems.length} sản phẩm mới`);
                     alert(`Đã nhập thành công ${newItems.length} sản phẩm vào kho.`);
                     resolve();
 
@@ -145,6 +153,7 @@ const ShopInventoryTable = () => {
             return;
         }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} sản phẩm đang chọn?`)) {
+            logAction('KHO_HANG', 'Xóa kho hàng loạt', `SLL: ${selectedIds.length}`);
             setShopItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
             setSelectedIds([]);
         }

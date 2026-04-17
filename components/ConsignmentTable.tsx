@@ -9,6 +9,7 @@ import { generateConsignmentTemplate } from '../utils/templateGenerator';
 import { generateConsignmentPDF } from '../utils/pdfGenerator';
 import ColumnToggler from './ColumnToggler';
 import html2canvas from 'html2canvas';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const initialData: ConsignmentItem[] = [];
 const GROUPS_PER_PAGE = 5; // Number of customer groups per page
@@ -43,6 +44,8 @@ const ConsignmentTable: React.FC = () => {
     const currentUserData = window.localStorage.getItem('currentUser');
     const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
     const isAdmin = currentUser?.role === 'ADMIN';
+
+    const logAction = useAuditLog();
 
     const receiptRef = useRef<HTMLDivElement>(null);
     const [exportingConsignor, setExportingConsignor] = useState<{ name: string, items: ConsignmentItem[] } | null>(null);
@@ -161,6 +164,7 @@ const ConsignmentTable: React.FC = () => {
         const confirmMsg = `Bạn có chắc muốn đổi trạng thái ${selectedIds.length} mục ký gửi thành "${newStatus}"?`;
 
         if (window.confirm(confirmMsg)) {
+            logAction('KY_GUI', 'Đổi trạng thái hàng loạt', `${selectedIds.length} mục -> ${newStatus}`);
             setItems(prev => prev.map(item =>
                 selectedIds.includes(item.id) ? { ...item, status: newStatus } : item
             ));
@@ -181,8 +185,10 @@ const ConsignmentTable: React.FC = () => {
     const handleSave = (itemsToSave: ConsignmentItem[]) => {
         if (editingItem) {
             const item = itemsToSave[0];
+            logAction('KY_GUI', 'Cập nhật mục ký gửi', `Sản phẩm: ${item.productName}`);
             setItems(prev => prev.map(i => i.id === item.id ? item : i));
         } else {
+            logAction('KY_GUI', 'Thêm mới ký gửi', `Đã thêm ${itemsToSave.length} mục`);
             setItems(prev => [...prev, ...itemsToSave]);
         }
         handleCloseModal();
@@ -194,6 +200,8 @@ const ConsignmentTable: React.FC = () => {
             return;
         }
         if (window.confirm('Bạn có chắc chắn muốn xóa mục ký gửi này?')) {
+            const item = items.find(i => i.id === id);
+            logAction('KY_GUI', 'Xóa mục ký gửi', item ? `${item.productName} (Khách: ${item.customerName})` : '');
             setItems(prev => prev.filter(i => i.id !== id));
         }
     };
@@ -204,6 +212,7 @@ const ConsignmentTable: React.FC = () => {
             return;
         }
         if (window.confirm(`Bạn có chắc chắn muốn xóa TẤT CẢ các mục ký gửi của khách hàng "${customerName}" không? Hành động này không thể hoàn tác.`)) {
+            logAction('KY_GUI', 'Xóa mọi ký gửi của khách', `Khách: ${customerName}`);
             setItems(prevItems => prevItems.filter(item => item.customerName !== customerName));
         }
     };
@@ -214,6 +223,7 @@ const ConsignmentTable: React.FC = () => {
             return;
         }
         if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu ký gửi không? Hành động này không thể hoàn tác.')) {
+            logAction('KY_GUI', 'Xóa toàn bộ ký gửi', '');
             setItems([]);
         }
     };
@@ -234,6 +244,7 @@ const ConsignmentTable: React.FC = () => {
             return;
         }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} mục ký gửi đã chọn?`)) {
+            logAction('KY_GUI', 'Xóa ký gửi hàng loạt', `SLL: ${selectedIds.length}`);
             setItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
             setSelectedIds([]);
         }
@@ -242,6 +253,7 @@ const ConsignmentTable: React.FC = () => {
     const handleImport = async (file: File) => {
         try {
             const newData = await transformToConsignmentData(file);
+            logAction('KY_GUI', 'Nhập dữ liệu', `Đã nhập ${newData.length} mục mới`);
             setItems(prev => [...prev, ...newData]);
             alert(`Đã nhập thành công ${newData.length} mục ký gửi mới!`);
         } catch (error: any) {
@@ -344,6 +356,7 @@ const ConsignmentTable: React.FC = () => {
         `;
 
         if (window.confirm(confirmationMessage)) {
+            logAction('KY_GUI', 'Thanh toán người bán', `Khách: ${customerName}, Tiền: ${formatCurrency(summary.totalTransferAmount)}`);
             // 1. Generate Revenue Entries for the Shop's Profit
             const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD);
             const newRevenueEntries: RevenueEntry[] = soldItems.map(item => {

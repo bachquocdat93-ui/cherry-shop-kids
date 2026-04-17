@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { UserAccount, UserRole } from '../types';
 import { PlusIcon, EditIcon, TrashIcon } from './Icons';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const DEFAULT_ACCOUNTS: UserAccount[] = [
     { id: '1', username: 'admin', passwordHash: 'admin', role: 'ADMIN', fullName: 'Chủ Shop' },
@@ -14,6 +15,8 @@ const StaffManager: React.FC = () => {
     const [editingAccount, setEditingAccount] = useState<UserAccount | null>(null);
 
     const [form, setForm] = useState<Partial<UserAccount>>({});
+    
+    const logAction = useAuditLog();
 
     const handleOpenModal = (account?: UserAccount) => {
         if (account) {
@@ -46,6 +49,7 @@ const StaffManager: React.FC = () => {
         }
 
         if (editingAccount) {
+            logAction('NHAN_SU', 'Cập nhật tài khoản', `Cập nhật: @${form.username}`);
             setAccounts(prev => prev.map(a => {
                 if (a.id === editingAccount.id) {
                     return {
@@ -75,6 +79,7 @@ const StaffManager: React.FC = () => {
                 return;
             }
 
+            logAction('NHAN_SU', 'Thêm mới tài khoản', `Tạo tài khoản: @${newAccount.username}`);
             setAccounts(prev => [...prev, newAccount]);
         }
         handleCloseModal();
@@ -82,6 +87,7 @@ const StaffManager: React.FC = () => {
 
     const handleDelete = (id: string, username: string) => {
         if (window.confirm(`Bạn có chắc chắn muốn xóa tài khoản "${username}" không?`)) {
+            logAction('NHAN_SU', 'Xóa tài khoản', `Xóa: @${username}`);
             setAccounts(prev => prev.filter(a => a.id !== id));
         }
     };

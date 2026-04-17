@@ -3,6 +3,7 @@ import useLocalStorage from '../hooks/useLocalStorage';
 import { RevenueEntry, CustomerInfo, Invoice } from '../types';
 import { UsersIcon, PhoneIcon, MapPinIcon, EditIcon, TrashIcon as BackIcon } from './Icons';
 import CustomerModal from './CustomerModal';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -28,6 +29,8 @@ const CustomersPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<CustomerInfo | null>(null);
+
+    const logAction = useAuditLog();
 
     const customers = useMemo<CustomerData[]>(() => {
         const infoMap = new Map(customersInfo.map(c => [c.name, { phone: c.phone, address: c.address }]));
@@ -89,6 +92,7 @@ const CustomersPage: React.FC = () => {
     };
 
     const handleSaveCustomerInfo = (updatedInfo: CustomerInfo) => {
+        logAction('KHACH_HANG', 'Cập nhật khách hàng', `KH: ${updatedInfo.name}`);
         setCustomersInfo(prev => {
             const existingIndex = prev.findIndex(c => c.name === updatedInfo.name);
             if (existingIndex > -1) {

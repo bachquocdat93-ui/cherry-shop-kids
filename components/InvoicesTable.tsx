@@ -11,6 +11,7 @@ import { transformToInvoiceData } from '../utils/importer';
 import { generateInvoicesTemplate } from '../utils/templateGenerator';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { generateUniqueId } from '../utils/helpers';
+import { useAuditLog } from '../hooks/useAuditLog';
 
 const initialData: Invoice[] = [];
 
@@ -36,6 +37,8 @@ const InvoicesTable = () => {
     const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
     const isAdmin = currentUser?.role === 'ADMIN';
 
+    const logAction = useAuditLog();
+
     useEffect(() => {
         const handleStorageChange = () => {
             const latest = window.localStorage.getItem('invoicesData');
@@ -60,8 +63,10 @@ const InvoicesTable = () => {
 
     const handleSave = (invoice: Invoice) => {
         if (editingInvoice) {
+            logAction('HOA_DON', 'Cập nhật hóa đơn', `Khách: ${invoice.customerName}`);
             setInvoices(prev => prev.map(i => i.id === invoice.id ? invoice : i));
         } else {
+            logAction('HOA_DON', 'Tạo hóa đơn', `Khách: ${invoice.customerName}`);
             setInvoices(prev => [...prev, invoice]);
         }
         handleCloseModal();
@@ -84,6 +89,7 @@ const InvoicesTable = () => {
     };
 
     const handleSplitSave = (updatedOriginal: Invoice, newInvoice: Invoice) => {
+        logAction('HOA_DON', 'Tách hóa đơn', `Từ ${updatedOriginal.customerName} sang ${newInvoice.customerName}`);
         let revenueUpdated = false;
         const revenueDataRaw = window.localStorage.getItem('revenueData');
         let revenueEntries: RevenueEntry[] = revenueDataRaw ? JSON.parse(revenueDataRaw) : [];
@@ -150,6 +156,7 @@ const InvoicesTable = () => {
         }
         const invoice = invoices.find(i => i.id === id);
         if (invoice && window.confirm('Bạn có chắc chắn muốn xóa hóa đơn này?\nKho hàng sẽ được cộng lại số lượng tương ứng.')) {
+            logAction('HOA_DON', 'Xóa hóa đơn', `Khách: ${invoice.customerName}`);
             // Revert Stock
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');
@@ -212,6 +219,7 @@ const InvoicesTable = () => {
             return;
         }
         if (window.confirm(`Bạn có chắc muốn xóa ${selectedIds.length} hóa đơn đã chọn?\nKho hàng sẽ được cộng lại số lượng tương ứng.`)) {
+            logAction('HOA_DON', 'Xóa hàng loạt', `SLL: ${selectedIds.length}`);
             // Revert Stock loop
             try {
                 const shopDataRaw = window.localStorage.getItem('shopInventoryData');
@@ -263,6 +271,7 @@ const InvoicesTable = () => {
         const confirmMsg = `Bạn có chắc muốn đổi trạng thái cho ${selectedIds.length} hóa đơn đã chọn sang "${newStatus}"?`;
 
         if (window.confirm(confirmMsg)) {
+            logAction('HOA_DON', 'Đổi trạng thái hóa đơn hàng loạt', `${selectedIds.length} hóa đơn -> ${newStatus}`);
             const updatedInvoices = [...invoices];
             const revenueDataRaw = window.localStorage.getItem('revenueData');
             let revenueEntries: RevenueEntry[] = revenueDataRaw ? JSON.parse(revenueDataRaw) : [];
@@ -376,7 +385,14 @@ const InvoicesTable = () => {
     };
 
     const handleClearAll = () => {
-        setInvoices([]);
+        if (!isAdmin) {
+             alert('Bạn không có quyền thực hiện chức năng xóa!');
+             return;
+        }
+        if (window.confirm('CẢNH BÁO: BẠN SẼ XÓA TOÀN BỘ HÓA ĐƠN. HÀNH ĐỘNG NÀY KHÔNG THỂ KHÔI PHỤC!')) {
+            logAction('HOA_DON', 'Xóa TOÀN BỘ hóa đơn', '');
+            setInvoices([]);
+        }
     };
 
     const handleResetFilters = () => {
