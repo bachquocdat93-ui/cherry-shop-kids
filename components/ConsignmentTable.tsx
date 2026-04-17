@@ -51,6 +51,15 @@ const ConsignmentTable: React.FC = () => {
     const [exportingConsignor, setExportingConsignor] = useState<{ name: string, items: ConsignmentItem[] } | null>(null);
 
     useEffect(() => {
+        const handleOpenAddConsignment = () => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+        };
+        window.addEventListener('openAddConsignment', handleOpenAddConsignment);
+        return () => window.removeEventListener('openAddConsignment', handleOpenAddConsignment);
+    }, []);
+
+    useEffect(() => {
         const handleExportImage = async () => {
             if (exportingConsignor && receiptRef.current) {
                 try {

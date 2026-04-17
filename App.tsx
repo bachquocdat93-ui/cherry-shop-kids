@@ -111,7 +111,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-100 text-gray-800 flex flex-col">
+    <div className="h-screen bg-gray-100 text-gray-800 flex flex-col lg:flex-row overflow-hidden">
       <AutoSyncManager />
       <Header
         currentPage={currentPage}
@@ -121,7 +121,7 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
         {renderPage()}
       </main>
       {isSyncModalOpen && (

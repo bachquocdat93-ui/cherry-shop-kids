@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ShopItem, RevenueEntry } from '../types';
 import { EditIcon, TrashIcon, PlusIcon, SearchIcon, UploadIcon } from './Icons';
@@ -21,6 +21,15 @@ const ShopInventoryTable = () => {
     const isAdmin = currentUser?.role === 'ADMIN';
 
     const logAction = useAuditLog();
+
+    useEffect(() => {
+        const handleOpenAddInventory = () => {
+            setEditingItem(null);
+            setIsModalOpen(true);
+        };
+        window.addEventListener('openAddInventory', handleOpenAddInventory);
+        return () => window.removeEventListener('openAddInventory', handleOpenAddInventory);
+    }, []);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);

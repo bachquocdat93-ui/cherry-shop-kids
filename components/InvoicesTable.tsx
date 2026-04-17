@@ -40,6 +40,15 @@ const InvoicesTable = () => {
     const logAction = useAuditLog();
 
     useEffect(() => {
+        const handleOpenAddInvoice = () => {
+            setEditingInvoice(null);
+            setIsModalOpen(true);
+        };
+        window.addEventListener('openAddInvoice', handleOpenAddInvoice);
+        return () => window.removeEventListener('openAddInvoice', handleOpenAddInvoice);
+    }, []);
+
+    useEffect(() => {
         const handleStorageChange = () => {
             const latest = window.localStorage.getItem('invoicesData');
             if (latest) setInvoices(JSON.parse(latest));

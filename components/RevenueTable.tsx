@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { RevenueEntry, RevenueStatus, Invoice, InvoiceItem, ShopItem, ConsignmentItem, ConsignmentStatus } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, UploadIcon, TrashIcon as ClearIcon, SettingsIcon, RefreshIcon, PdfIcon } from './Icons';
@@ -37,6 +37,15 @@ const RevenueTable: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const logAction = useAuditLog();
+
+    useEffect(() => {
+        const handleOpenAddRevenue = () => {
+            setEditingEntry(null);
+            setIsModalOpen(true);
+        };
+        window.addEventListener('openAddRevenue', handleOpenAddRevenue);
+        return () => window.removeEventListener('openAddRevenue', handleOpenAddRevenue);
+    }, []);
 
     const currentUserData = window.localStorage.getItem('currentUser');
     const currentUser = currentUserData ? JSON.parse(currentUserData) : null;
