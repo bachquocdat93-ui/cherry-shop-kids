@@ -407,39 +407,18 @@ const ConsignmentTable: React.FC = () => {
             - Lợi nhuận cửa hàng (Phí): ${formatCurrency(summary.totalValueSold - summary.totalTransferAmount)}
 
             Hành động này sẽ:
-            1. Tạo doanh thu lợi nhuận cho cửa hàng.
-            2. XÓA các sản phẩm "Đã bán" khỏi danh sách.
+            XÓA các sản phẩm "Đã bán" khỏi danh sách.
         `;
 
         if (window.confirm(confirmationMessage)) {
             logAction('KY_GUI', 'Thanh toán người bán', `Khách: ${customerName}, Tiền: ${formatCurrency(summary.totalTransferAmount)}`);
-            // 1. Generate Revenue Entries for the Shop's Profit
-            const soldItems = customerItems.filter(i => i.status === ConsignmentStatus.SOLD);
-            const newRevenueEntries: RevenueEntry[] = soldItems.map(item => {
-                const effectiveSoldQty = item.soldQuantity || (item.quantity === 0 ? 1 : item.quantity);
-                const profitPerItem = item.isFee ? item.consignmentPrice : item.consignmentPrice * (item.consignmentFee / 100);
-                return {
-                    id: crypto.randomUUID(),
-                    date: new Date().toISOString(), // Settle Date
-                    customerName: `[Ký Gửi] ${item.customerName}`,
-                    productName: `Phí ký gửi: ${item.productName}`,
-                    costPrice: 0, // Pure profit
-                    retailPrice: profitPerItem, // The fee is the revenue
-                    quantity: effectiveSoldQty,
-                    note: `Thanh toán hàng ký gửi. Giá bán gốc: ${item.consignmentPrice}`,
-                    status: RevenueStatus.DELIVERED,
-                    consignor: item.customerName
-                };
-            });
 
-            setRevenueData(prev => [...prev, ...newRevenueEntries]);
-
-            // 2. Remove settled items
+            // Remove settled items
             setItems(prevItems => prevItems.filter(item => {
                 return item.customerName !== customerName || item.status !== ConsignmentStatus.SOLD;
             }));
 
-            alert(`Đã thanh toán thành công!\nĐã thêm ${formatCurrency(summary.totalValueSold - summary.totalTransferAmount)} vào doanh thu.`);
+            alert(`Đã thanh toán thành công!`);
         }
     };
 
