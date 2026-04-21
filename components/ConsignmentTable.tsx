@@ -597,7 +597,11 @@ const ConsignmentTable: React.FC = () => {
                                                             <div className="flex items-center gap-3">
                                                                 {item.imageUrl ? (
                                                                     <img src={item.imageUrl} alt={item.productName} className="w-8 h-8 rounded object-cover border border-gray-200 shrink-0" />
-                                                                ) : null}
+                                                                ) : (
+                                                                    <div className="w-8 h-8 bg-gray-50 rounded border border-gray-200 flex items-center justify-center shrink-0">
+                                                                        <span className="text-[8px] text-gray-400 text-center leading-tight">Chưa có<br/>ảnh</span>
+                                                                    </div>
+                                                                )}
                                                                 <span className="text-xs font-bold max-w-[200px] block truncate" title={item.productName}>{item.productName}</span>
                                                             </div>
                                                         </td>
@@ -656,19 +660,23 @@ const ConsignmentTable: React.FC = () => {
                                                         onChange={() => toggleSelectOne(item.id)}
                                                         className="rounded border-gray-300 text-primary focus:ring-primary"
                                                     />
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            {item.imageUrl && (
-                                                                <img src={item.imageUrl} alt={item.productName} className="w-10 h-10 rounded object-cover border border-gray-200 shrink-0" />
-                                                            )}
-                                                            <p className="font-bold text-gray-800 text-sm truncate pr-2">
+                                                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                        {item.imageUrl ? (
+                                                            <img src={item.imageUrl} alt="" className="w-12 h-12 rounded object-cover border border-gray-200 shrink-0" />
+                                                        ) : (
+                                                            <div className="w-12 h-12 bg-gray-50 rounded border border-gray-200 flex items-center justify-center shrink-0">
+                                                                <span className="text-[9px] font-medium text-gray-400 text-center leading-tight">Chưa có<br/>ảnh</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="font-bold text-gray-800 text-sm truncate pr-2 mb-1.5">
                                                                 {item.productName}
                                                                 {item.isFee && <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-600 text-[9px] rounded uppercase tracking-wider">Phụ phí</span>}
                                                             </p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {item.isFee ? <span className="text-[10px] font-black uppercase text-red-500 bg-red-50 border border-red-200 px-2 rounded-full">Phí</span> : getStatusBadge(item.status)} 
-                                                            {!item.isFee && <span className="text-[10px] text-gray-400">SL: {effectiveQty}</span>}
+                                                            <div className="flex items-center gap-2">
+                                                                {item.isFee ? <span className="text-[10px] font-black uppercase text-red-500 bg-red-50 border border-red-200 px-2 rounded-full">Phí</span> : getStatusBadge(item.status)} 
+                                                                {!item.isFee && <span className="text-[10px] text-gray-400">SL: {effectiveQty}</span>}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -813,9 +821,20 @@ const ConsignmentTable: React.FC = () => {
 
                                         return (
                                             <tr key={idx} className={rowBg}>
-                                                <td className="p-3 text-[12px] text-gray-800 border" style={{ borderColor: '#ee4d9a' }}>
-                                                    {item.isFee && <span className="mr-1 text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded font-black">PHỤ PHÍ</span>}
-                                                    {item.productName}
+                                                <td className="p-2 text-[12px] text-gray-800 border" style={{ borderColor: '#ee4d9a' }}>
+                                                    <div className="flex items-center gap-2">
+                                                        {item.imageUrl ? (
+                                                            <img src={item.imageUrl} alt="" className="w-10 h-10 object-cover rounded border shrink-0" style={{ borderColor: '#ee4d9a' }} />
+                                                        ) : (
+                                                            <div className="w-10 h-10 bg-gray-50 flex items-center justify-center rounded border shrink-0" style={{ borderColor: '#ee4d9a' }}>
+                                                                <span className="text-[8px] text-gray-400 text-center leading-tight">Chưa có<br/>ảnh</span>
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            {item.isFee && <span className="mr-1 text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded font-black block w-fit mb-0.5">PHỤ PHÍ</span>}
+                                                            <span className="font-medium line-clamp-2">{item.productName}</span>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                                 <td className="p-3 text-[12px] font-bold text-center border" style={{ borderColor: '#ee4d9a', color: '#555' }}>
                                                     <div className="flex flex-col items-center">
