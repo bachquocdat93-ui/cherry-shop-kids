@@ -694,7 +694,22 @@ const RevenueTable: React.FC = () => {
                                     </td>
                                     {visibleColumns.includes('date') && <td className="px-3 py-3 whitespace-nowrap text-[10px] text-gray-400 font-bold border-b border-gray-50">{entry.date.split('-').reverse().join('/')}</td>}
                                     {visibleColumns.includes('customerName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-black text-gray-900 border-b border-gray-50">{entry.customerName || 'Vãng lai'}</td>}
-                                    {visibleColumns.includes('productName') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px] border-b border-gray-50" title={entry.productName}>{entry.productName}</td>}
+                                    {visibleColumns.includes('productName') && (
+                                        <td className="px-2 py-3 border-b border-gray-50">
+                                            <div className="flex items-center gap-2">
+                                                {entry.imageUrl ? (
+                                                    <img src={entry.imageUrl} alt="" className="w-8 h-8 rounded object-cover border border-gray-200 shrink-0" />
+                                                ) : (
+                                                    <div className="w-8 h-8 bg-gray-50 rounded border border-gray-200 flex items-center justify-center shrink-0">
+                                                        <span className="text-[8px] text-gray-400 text-center leading-tight">Chưa có<br/>ảnh</span>
+                                                    </div>
+                                                )}
+                                                <div className="whitespace-nowrap text-[11px] text-gray-600 truncate max-w-[120px]" title={entry.productName}>
+                                                    {entry.productName}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    )}
                                     {isAdmin && visibleColumns.includes('costPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-gray-400 text-right italic border-b border-gray-50">{formatCurrency(entry.costPrice)}</td>}
                                     {visibleColumns.includes('retailPrice') && <td className="px-2 py-3 whitespace-nowrap text-[11px] font-bold text-right border-b border-gray-50">{formatCurrency(entry.retailPrice)}</td>}
                                     {visibleColumns.includes('quantity') && <td className="px-2 py-3 whitespace-nowrap text-[11px] text-center font-black border-b border-gray-50">{entry.quantity}</td>}
@@ -774,9 +789,18 @@ const RevenueTable: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="mb-2">
-                                <p className="text-sm text-gray-700 font-medium line-clamp-2" title={entry.productName}>{entry.productName}</p>
-                                {isConsignment && <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold">KG: {entry.consignor}</span>}
+                            <div className="mb-2 flex items-start gap-3">
+                                {entry.imageUrl ? (
+                                    <img src={entry.imageUrl} alt="" className="w-12 h-12 rounded object-cover border border-gray-200 shrink-0" />
+                                ) : (
+                                    <div className="w-12 h-12 bg-gray-50 rounded border border-gray-200 flex items-center justify-center shrink-0 text-[10px] text-gray-400">
+                                        <span className="text-[9px] font-medium text-gray-400 text-center leading-tight">Chưa có<br/>ảnh</span>
+                                    </div>
+                                )}
+                                <div>
+                                    <p className="text-sm text-gray-700 font-medium line-clamp-2" title={entry.productName}>{entry.productName}</p>
+                                    {isConsignment && <span className="inline-block mt-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold">KG: {entry.consignor}</span>}
+                                </div>
                             </div>
 
                             <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-2 bg-white/50 p-2 rounded-lg mb-2`}>
