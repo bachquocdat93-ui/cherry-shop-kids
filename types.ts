@@ -10,6 +10,7 @@ export interface RevenueEntry {
   consignor?: string;
   shopItemId?: string; // Link to Shop Inventory
   consignmentItemId?: string; // Link to Consignment Inventory
+  imageUrl?: string;
   status: RevenueStatus;
 }
 
@@ -84,6 +85,7 @@ export interface ShopItem {
   retailPrice: number;
   quantity: number;
   note?: string;
+  imageUrl?: string;
 }
 
 export type AuditLogCategory = 'DOANH_THU' | 'HOA_DON' | 'KY_GUI' | 'KHO_HANG' | 'NHAN_SU' | 'HE_THONG';
