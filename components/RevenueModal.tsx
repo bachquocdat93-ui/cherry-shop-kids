@@ -433,10 +433,10 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
         </div>
 
         {/* BODY */}
-        <div className={`flex flex-1 overflow-hidden ${entry ? 'flex-col' : 'flex-col md:flex-row bg-gray-50/50'}`}>
+        <div className={`flex flex-1 overflow-y-auto md:overflow-hidden ${entry ? 'flex-col' : 'flex-col md:flex-row bg-gray-50/50'}`}>
           
           {/* LEFT COLUMN: Product Selection */}
-          <div className={`${entry ? 'w-full' : 'w-full md:w-1/2 md:border-r border-gray-200'} bg-white overflow-y-auto flex flex-col p-6`}>
+          <div className={`${entry ? 'w-full' : 'w-full md:w-1/2 md:border-r border-gray-200'} bg-white md:overflow-y-auto flex flex-col p-6 shrink-0 md:shrink`}>
              {!entry && (
                <div className="flex bg-gray-100 p-1 rounded-lg mb-6">
                  <button type="button" onClick={() => handleSourceChange('manual')} className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${productForm.source === 'manual' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -723,7 +723,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
           </div>
 
           {/* RIGHT COLUMN: The POS Cart / Receipt details */}
-          <div className={`${entry ? 'w-full' : 'w-full md:w-1/2 flex flex-col'} relative`}>
+          <div className={`${entry ? 'w-full' : 'w-full md:w-1/2 flex flex-col shrink-0 md:shrink'} relative`}>
             
             {/* Customer Details Head */}
             <div className={`p-6 pb-2 ${entry ? '' : 'bg-transparent'}`}>
@@ -780,7 +780,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
 
             {/* Added Items List (Cart) */}
             {!entry && (
-               <div className="flex-1 overflow-y-auto p-6 pt-2">
+               <div className="flex-1 md:overflow-y-auto p-6 pt-2 pb-6">
                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Sản phẩm đã chọn</h4>
                  
                  {addedItems.length === 0 && (!productForm.productName || productForm.retailPrice === 0) ? (
@@ -836,19 +836,20 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                </div>
             )}
 
-            {/* Bottom Finalize Area */}
-            <div className="p-6 bg-gray-50/50 border-t border-gray-200 shrink-0">
-               <div className="flex justify-between items-center mb-4">
-                   <p className="text-sm font-medium text-gray-500">Tổng thanh toán</p>
-                   <p className="text-2xl font-bold text-gray-900">
-                      {new Intl.NumberFormat('vi-VN').format(draftTotal)}đ
-                   </p>
-               </div>
-               <button type="button" onClick={handleSubmit} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all">
-                  {entry ? 'LƯU THAY ĐỔI' : 'HOÀN TẤT ĐƠN HÀNG'}
-               </button>
-            </div>
           </div>
+        </div>
+
+        {/* Global Bottom Finalize Area */}
+        <div className="p-4 sm:p-6 bg-white border-t border-gray-200 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4 z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+           <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+               <p className="text-sm font-medium text-gray-500">Tổng thanh toán</p>
+               <p className="text-2xl font-bold text-gray-900">
+                  {new Intl.NumberFormat('vi-VN').format(draftTotal)}đ
+               </p>
+           </div>
+           <button type="button" onClick={handleSubmit} className="w-full sm:w-auto sm:min-w-[250px] flex justify-center py-3 px-6 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-gray-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-all">
+              {entry ? 'LƯU THAY ĐỔI' : 'HOÀN TẤT ĐƠN HÀNG'}
+           </button>
         </div>
       </div>
     </div>
