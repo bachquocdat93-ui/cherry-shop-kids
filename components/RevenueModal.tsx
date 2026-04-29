@@ -693,7 +693,7 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                 )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-gray-100 pt-4 mt-2">
-                  <div className="col-span-1 hidden sm:block">
+                  <div className="col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Giá vốn</label>
                     <input type="number" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className={`block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border-gray-300 focus:ring-primary focus:border-primary ${productForm.source !== 'manual' ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}`} readOnly={productForm.source !== 'manual'} />
                   </div>
