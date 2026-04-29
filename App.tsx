@@ -42,6 +42,71 @@ const App: React.FC = () => {
     }
   }, [currentUser, currentPage]);
 
+  useEffect(() => {
+    const isMigrated = localStorage.getItem('migration_split_invoices_v1');
+    if (!isMigrated) {
+        try {
+            const rawInvoices = localStorage.getItem('invoicesData');
+            if (rawInvoices) {
+                let invoices: Invoice[] = JSON.parse(rawInvoices);
+                let migrated = false;
+                let newInvoicesList: Invoice[] = [];
+
+                invoices.forEach(invoice => {
+                    const holdingItems = invoice.items.filter(i => i.status === 'HOLDING');
+                    const nonHoldingItems = invoice.items.filter(i => i.status !== 'HOLDING');
+
+                    if (holdingItems.length > 0 && nonHoldingItems.length > 0) {
+                        migrated = true;
+                        
+                        const nonHoldingTotalItems = nonHoldingItems.reduce((s, i) => s + (i.sellingPrice * i.quantity), 0);
+                        const nonHoldingTotal = nonHoldingTotalItems - (invoice.discount || 0) + (invoice.shippingFee || 0);
+                        
+                        let nonHoldingDeposit = 0;
+                        let holdingDeposit = 0;
+
+                        if (invoice.deposit >= nonHoldingTotal && nonHoldingTotal > 0) {
+                            nonHoldingDeposit = nonHoldingTotal; 
+                            holdingDeposit = invoice.deposit - nonHoldingTotal; 
+                        } else {
+                            nonHoldingDeposit = invoice.deposit;
+                            holdingDeposit = 0;
+                        }
+
+                        const newHoldingInvoice: Invoice = {
+                            ...invoice,
+                            id: invoice.id + '_' + Date.now() + Math.random().toString(36).substring(2, 6),
+                            items: holdingItems,
+                            deposit: holdingDeposit,
+                            discount: 0,
+                            shippingFee: 0,
+                        };
+
+                        const newNonHoldingInvoice: Invoice = {
+                            ...invoice,
+                            items: nonHoldingItems,
+                            deposit: nonHoldingDeposit
+                        };
+
+                        newInvoicesList.push(newNonHoldingInvoice);
+                        newInvoicesList.push(newHoldingInvoice);
+                    } else {
+                        newInvoicesList.push(invoice);
+                    }
+                });
+
+                if (migrated) {
+                    localStorage.setItem('invoicesData', JSON.stringify(newInvoicesList));
+                    window.dispatchEvent(new Event('storage'));
+                }
+            }
+        } catch (e) {
+            console.error('Migration failed', e);
+        }
+        localStorage.setItem('migration_split_invoices_v1', 'true');
+    }
+  }, []);
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':

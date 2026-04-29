@@ -61,7 +61,8 @@ const RevenueTable: React.FC = () => {
 
             if (action === 'add') {
                 const existingInvoiceIndex = invoices.findIndex(inv =>
-                    inv.customerName.trim().toLowerCase() === customerKey
+                    inv.customerName.trim().toLowerCase() === customerKey &&
+                    inv.items.every(item => item.status === RevenueStatus.HOLDING)
                 );
 
                 const newItem: InvoiceItem = {
@@ -126,7 +127,8 @@ const RevenueTable: React.FC = () => {
                 // If it was an update, add it back to the CORRECT target invoice (handles customer name changes)
                 if (action === 'update') {
                     const targetInvoiceIdx = invoices.findIndex(inv =>
-                        inv.customerName.trim().toLowerCase() === customerKey
+                        inv.customerName.trim().toLowerCase() === customerKey &&
+                        inv.items.every(item => item.status === RevenueStatus.HOLDING)
                     );
 
                     const itemToInsert = itemToMove || {
