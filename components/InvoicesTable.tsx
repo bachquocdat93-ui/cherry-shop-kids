@@ -293,7 +293,45 @@ const InvoicesTable = () => {
             let shopChanged = false;
             let consChanged = false;
 
-            selectedIds.forEach(id => {
+            // First, merge selected invoices by customer
+            const selectedInvoices = updatedInvoices.filter(inv => selectedIds.includes(inv.id));
+            const groupedByCustomer: Record<string, Invoice[]> = {};
+            selectedInvoices.forEach(inv => {
+                const key = inv.customerName.trim().toLowerCase();
+                if (!groupedByCustomer[key]) groupedByCustomer[key] = [];
+                groupedByCustomer[key].push(inv);
+            });
+
+            const targetInvoiceIdsToProcess: string[] = [];
+
+            Object.values(groupedByCustomer).forEach(group => {
+                if (group.length > 0) {
+                    const primaryInvoice = { ...group[0], items: [...group[0].items] };
+                    targetInvoiceIdsToProcess.push(primaryInvoice.id);
+
+                    if (group.length > 1) {
+                        for (let i = 1; i < group.length; i++) {
+                            const current = group[i];
+                            primaryInvoice.items.push(...current.items);
+                            primaryInvoice.deposit += (current.deposit || 0);
+                            primaryInvoice.shippingFee = (primaryInvoice.shippingFee || 0) + (current.shippingFee || 0);
+                            primaryInvoice.discount = (primaryInvoice.discount || 0) + (current.discount || 0);
+                            
+                            // Remove secondary invoices from updatedInvoices
+                            const secIdx = updatedInvoices.findIndex(inv => inv.id === current.id);
+                            if (secIdx !== -1) updatedInvoices.splice(secIdx, 1);
+                        }
+                        
+                        // Update primary invoice
+                        const primIdx = updatedInvoices.findIndex(inv => inv.id === primaryInvoice.id);
+                        if (primIdx !== -1) {
+                            updatedInvoices[primIdx] = primaryInvoice;
+                        }
+                    }
+                }
+            });
+
+            targetInvoiceIdsToProcess.forEach(id => {
                 const invIdx = updatedInvoices.findIndex(inv => inv.id === id);
                 if (invIdx !== -1) {
                     const invoice = updatedInvoices[invIdx];
@@ -390,6 +428,67 @@ const InvoicesTable = () => {
             setInvoices(updatedInvoices);
             setSelectedIds([]);
             alert(`Đã cập nhật trạng thái cho ${selectedIds.length} hóa đơn.`);
+        }
+    };
+
+    const handleBulkMerge = () => {
+        if (selectedIds.length < 2) {
+            alert('Vui lòng chọn ít nhất 2 hóa đơn để thực hiện gộp!');
+            return;
+        }
+
+        const selectedInvoices = invoices.filter(inv => selectedIds.includes(inv.id));
+        
+        // Group by customer name
+        const groupedByCustomer: Record<string, Invoice[]> = {};
+        selectedInvoices.forEach(inv => {
+            const key = inv.customerName.trim().toLowerCase();
+            if (!groupedByCustomer[key]) groupedByCustomer[key] = [];
+            groupedByCustomer[key].push(inv);
+        });
+
+        // Check if there are any groups that can be merged
+        let hasMerges = false;
+        Object.values(groupedByCustomer).forEach(group => {
+            if (group.length > 1) hasMerges = true;
+        });
+
+        if (!hasMerges) {
+            alert('Không có hóa đơn nào của cùng một khách hàng để gộp. Vui lòng chọn các hóa đơn của cùng 1 khách!');
+            return;
+        }
+
+        if (window.confirm('Bạn có chắc muốn GỘP các hóa đơn đã chọn của cùng khách hàng lại với nhau không?')) {
+            logAction('HOA_DON', 'Gộp hóa đơn', `Gộp ${selectedIds.length} hóa đơn`);
+            
+            let finalInvoices = [...invoices];
+            
+            Object.values(groupedByCustomer).forEach(group => {
+                if (group.length > 1) {
+                    const primaryInvoice = { ...group[0], items: [...group[0].items] };
+                    
+                    for (let i = 1; i < group.length; i++) {
+                        const current = group[i];
+                        primaryInvoice.items.push(...current.items);
+                        primaryInvoice.deposit += (current.deposit || 0);
+                        primaryInvoice.shippingFee = (primaryInvoice.shippingFee || 0) + (current.shippingFee || 0);
+                        primaryInvoice.discount = (primaryInvoice.discount || 0) + (current.discount || 0);
+                        
+                        // Remove secondary invoices
+                        finalInvoices = finalInvoices.filter(inv => inv.id !== current.id);
+                    }
+                    
+                    // Update primary invoice
+                    const primIdx = finalInvoices.findIndex(inv => inv.id === primaryInvoice.id);
+                    if (primIdx !== -1) {
+                        finalInvoices[primIdx] = primaryInvoice;
+                    }
+                }
+            });
+
+            setInvoices(finalInvoices);
+            setSelectedIds([]);
+            alert('Đã gộp hóa đơn thành công!');
         }
     };
 
@@ -524,6 +623,9 @@ const InvoicesTable = () => {
                     {selectedIds.length > 0 && (
                         <div className="flex items-center gap-2 bg-blue-50 p-1 rounded-lg border border-blue-200">
                             <span className="text-[10px] font-black text-blue-600 px-2 uppercase line-clamp-1">Đổi {selectedIds.length} HĐ:</span>
+                            {selectedIds.length > 1 && (
+                                <button onClick={handleBulkMerge} className="text-[9px] font-bold bg-white text-purple-700 px-2 py-1 rounded border border-purple-200 hover:bg-purple-50 uppercase shadow-sm whitespace-nowrap">Gộp Đơn</button>
+                            )}
                             <button onClick={() => handleBulkStatusChange(RevenueStatus.HOLDING)} className="text-[9px] font-bold bg-white text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 uppercase shadow-sm whitespace-nowrap">Dồn đơn</button>
                             <button onClick={() => handleBulkStatusChange(RevenueStatus.SHIPPING)} className="text-[9px] font-bold bg-white text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-50 uppercase shadow-sm whitespace-nowrap">Đang đi</button>
                             <button onClick={() => handleBulkStatusChange(RevenueStatus.DELIVERED)} className="text-[9px] font-bold bg-white text-yellow-700 px-2 py-1 rounded border border-yellow-200 hover:bg-yellow-50 uppercase shadow-sm whitespace-nowrap">Hoàn thành</button>

@@ -126,10 +126,27 @@ const RevenueTable: React.FC = () => {
 
                 // If it was an update, add it back to the CORRECT target invoice (handles customer name changes)
                 if (action === 'update') {
-                    const targetInvoiceIdx = invoices.findIndex(inv =>
-                        inv.customerName.trim().toLowerCase() === customerKey &&
-                        inv.items.every(item => item.status === RevenueStatus.HOLDING)
+                    // Try to put it back into the same invoice if the customer name is the same
+                    let targetInvoiceIdx = invoices.findIndex(inv =>
+                        inv.id === sourceInvoiceId &&
+                        inv.customerName.trim().toLowerCase() === customerKey
                     );
+
+                    // If not found, try to find an active HOLDING invoice for this customer
+                    if (targetInvoiceIdx === -1) {
+                        targetInvoiceIdx = invoices.findIndex(inv =>
+                            inv.customerName.trim().toLowerCase() === customerKey &&
+                            inv.items.every(item => item.status === RevenueStatus.HOLDING)
+                        );
+                    }
+
+                    // If still not found and we are updating to SHIPPING/DELIVERED, try to find an invoice with the same status
+                    if (targetInvoiceIdx === -1) {
+                        targetInvoiceIdx = invoices.findIndex(inv =>
+                            inv.customerName.trim().toLowerCase() === customerKey &&
+                            inv.items.every(item => item.status === entry.status)
+                        );
+                    }
 
                     const itemToInsert = itemToMove || {
                         id: generateUniqueId(),
