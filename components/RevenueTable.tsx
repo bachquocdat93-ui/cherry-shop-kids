@@ -60,10 +60,13 @@ const RevenueTable: React.FC = () => {
             const customerKey = (entry.customerName || 'Khách lẻ').trim().toLowerCase();
 
             if (action === 'add') {
-                const existingInvoiceIndex = invoices.findIndex(inv =>
-                    inv.customerName.trim().toLowerCase() === customerKey &&
-                    inv.items.every(item => item.status === RevenueStatus.HOLDING)
-                );
+                let existingInvoiceIndex = -1;
+                if (entry.status === RevenueStatus.HOLDING) {
+                    existingInvoiceIndex = invoices.findIndex(inv =>
+                        inv.customerName.trim().toLowerCase() === customerKey &&
+                        inv.items.every(item => item.status === RevenueStatus.HOLDING)
+                    );
+                }
 
                 const newItem: InvoiceItem = {
                     id: generateUniqueId(),
@@ -120,32 +123,32 @@ const RevenueTable: React.FC = () => {
                     return { ...invoice, items: remainingItems };
                 });
 
-                if (action === 'remove') {
-                    invoices = invoices.filter(inv => inv.items.length > 0);
-                }
+                invoices = invoices.filter(inv => inv.items.length > 0);
 
                 // If it was an update, add it back to the CORRECT target invoice (handles customer name changes)
                 if (action === 'update') {
-                    // Try to put it back into the same invoice if the customer name is the same
-                    let targetInvoiceIdx = invoices.findIndex(inv =>
-                        inv.id === sourceInvoiceId &&
-                        inv.customerName.trim().toLowerCase() === customerKey
-                    );
+                    let targetInvoiceIdx = -1;
 
-                    // If not found, try to find an active HOLDING invoice for this customer
-                    if (targetInvoiceIdx === -1) {
+                    if (entry.status === RevenueStatus.HOLDING) {
+                        // Priority: merge into existing HOLDING invoice
                         targetInvoiceIdx = invoices.findIndex(inv =>
                             inv.customerName.trim().toLowerCase() === customerKey &&
                             inv.items.every(item => item.status === RevenueStatus.HOLDING)
                         );
-                    }
-
-                    // If still not found and we are updating to SHIPPING/DELIVERED, try to find an invoice with the same status
-                    if (targetInvoiceIdx === -1) {
+                    } else {
+                        // For non-HOLDING, only put back into source if it matches status, or try to find same status
                         targetInvoiceIdx = invoices.findIndex(inv =>
+                            inv.id === sourceInvoiceId &&
                             inv.customerName.trim().toLowerCase() === customerKey &&
                             inv.items.every(item => item.status === entry.status)
                         );
+                        
+                        if (targetInvoiceIdx === -1) {
+                            targetInvoiceIdx = invoices.findIndex(inv =>
+                                inv.customerName.trim().toLowerCase() === customerKey &&
+                                inv.items.every(item => item.status === entry.status)
+                            );
+                        }
                     }
 
                     const itemToInsert = itemToMove || {

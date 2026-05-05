@@ -408,7 +408,24 @@ const InvoicesTable = () => {
                         return { ...item, status: newStatus, revenueEntryId: currentRevenueEntryId };
                     });
 
-                    updatedInvoices[invIdx] = { ...invoice, items: updatedItems };
+                    if (newStatus === RevenueStatus.HOLDING) {
+                        const existingHoldingIdx = updatedInvoices.findIndex((inv, idx) => 
+                            idx !== invIdx && 
+                            inv.customerName.trim().toLowerCase() === invoice.customerName.trim().toLowerCase() && 
+                            inv.items.every(i => i.status === RevenueStatus.HOLDING)
+                        );
+                        if (existingHoldingIdx !== -1) {
+                            updatedInvoices[existingHoldingIdx].items.push(...updatedItems);
+                            updatedInvoices[existingHoldingIdx].deposit += (invoice.deposit || 0);
+                            updatedInvoices[existingHoldingIdx].shippingFee = (updatedInvoices[existingHoldingIdx].shippingFee || 0) + (invoice.shippingFee || 0);
+                            updatedInvoices[existingHoldingIdx].discount = (updatedInvoices[existingHoldingIdx].discount || 0) + (invoice.discount || 0);
+                            updatedInvoices[invIdx] = { ...invoice, items: [] };
+                        } else {
+                            updatedInvoices[invIdx] = { ...invoice, items: updatedItems };
+                        }
+                    } else {
+                        updatedInvoices[invIdx] = { ...invoice, items: updatedItems };
+                    }
                 }
             });
 
@@ -425,7 +442,8 @@ const InvoicesTable = () => {
                 window.dispatchEvent(new Event('storage'));
             }
 
-            setInvoices(updatedInvoices);
+            const finalInvoices = updatedInvoices.filter(inv => inv.items.length > 0);
+            setInvoices(finalInvoices);
             setSelectedIds([]);
             alert(`Đã cập nhật trạng thái cho ${selectedIds.length} hóa đơn.`);
         }
