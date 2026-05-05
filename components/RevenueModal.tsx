@@ -695,11 +695,11 @@ const RevenueModal: React.FC<RevenueModalProps> = ({ entry, onSave, onClose }) =
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-gray-100 pt-4 mt-2">
                   <div className="col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Giá vốn</label>
-                    <input type="number" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className={`block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border-gray-300 focus:ring-primary focus:border-primary ${productForm.source !== 'manual' ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}`} readOnly={productForm.source !== 'manual'} />
+                    <input type="number" name="costPrice" value={productForm.costPrice} onChange={handleProductChange} className="block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border-gray-300 focus:ring-primary focus:border-primary bg-white text-gray-900" />
                   </div>
                   <div className="col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Giá bán <span className="text-red-500">*</span></label>
-                    <input type="number" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className={`block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 font-semibold text-gray-900 border-gray-300 focus:ring-primary focus:border-primary ${productForm.source === 'shop' ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'}`} readOnly={productForm.source === 'shop'} />
+                    <input type="number" name="retailPrice" value={productForm.retailPrice} onChange={handleProductChange} required className="block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 font-semibold text-gray-900 border-gray-300 focus:ring-primary focus:border-primary bg-white" />
                   </div>
                   <div className="col-span-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng <span className="text-red-500">*</span></label>

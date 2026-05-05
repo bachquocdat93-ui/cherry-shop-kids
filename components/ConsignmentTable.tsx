@@ -210,7 +210,7 @@ const ConsignmentTable: React.FC = () => {
                             if (rev.productName.startsWith('Phí ký gửi: ')) {
                                 return { ...rev, productName: `Phí ký gửi: ${item.productName}`, consignor: item.customerName };
                             }
-                            return { ...rev, productName: item.productName, consignor: item.customerName, retailPrice: item.consignmentPrice, consignmentItemId: item.id };
+                            return { ...rev, productName: item.productName, consignor: item.customerName, costPrice: item.consignmentPrice, consignmentItemId: item.id };
                         }
                         return rev;
                     });
