@@ -90,7 +90,9 @@ const ReportsPage: React.FC = () => {
         const totalProfit = filtered.reduce((sum, e) => {
             const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
             const isConsignment = e.consignor && e.consignor.trim() !== '';
-            const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
+            const cItem = consignmentData.find(c => c.id === e.consignmentItemId || (c.customerName === e.consignor && c.productName === e.productName && c.consignmentPrice === e.costPrice));
+            const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+            const consignmentBonus = isConsignment ? (e.costPrice * commissionRate * e.quantity) : 0;
             return sum + profitMargin + consignmentBonus;
         }, 0);
 
@@ -326,7 +328,9 @@ const ReportsPage: React.FC = () => {
                                     {revenueStats.detailedEntries.map(entry => {
                                         const profitMargin = (entry.retailPrice - entry.costPrice) * entry.quantity;
                                         const isConsignment = entry.consignor && entry.consignor.trim() !== '';
-                                        const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
+                                        const cItem = consignmentData.find(c => c.id === entry.consignmentItemId || (c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.costPrice));
+                                        const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+                                        const consignmentBonus = isConsignment ? (entry.costPrice * commissionRate * entry.quantity) : 0;
                                         const totalProfit = profitMargin + consignmentBonus;
 
                                         return (
@@ -339,7 +343,7 @@ const ReportsPage: React.FC = () => {
                                                 <td className="px-3 py-2 text-right font-bold">{formatCurrency(entry.retailPrice * entry.quantity)}</td>
                                                 <td className="px-3 py-2 text-right font-bold text-green-600">
                                                     {formatCurrency(totalProfit)}
-                                                    {isConsignment && <span className="text-[9px] text-gray-400 block font-normal">(Có 20% phụ phí)</span>}
+                                                    {isConsignment && <span className="text-[9px] text-gray-400 block font-normal">(Có {commissionRate * 100}% phụ phí)</span>}
                                                 </td>
                                             </tr>
                                         );

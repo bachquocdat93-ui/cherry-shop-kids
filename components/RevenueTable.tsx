@@ -29,6 +29,7 @@ const REVENUE_COLUMNS = [
 
 const RevenueTable: React.FC = () => {
     const [revenueData, setRevenueData] = useLocalStorage<RevenueEntry[]>('revenueData', initialData);
+    const [consignmentData] = useLocalStorage<ConsignmentItem[]>('consignmentData', []);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<RevenueEntry | null>(null);
@@ -509,21 +510,26 @@ const RevenueTable: React.FC = () => {
         const totalFinalProfitAll = activeData.reduce((sum, e) => {
             const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
             const isConsignment = e.consignor && e.consignor.trim() !== '';
-            const consignmentBonus = isConsignment ? (e.costPrice * 0.2 * e.quantity) : 0;
+            const cItem = consignmentData.find(c => c.id === e.consignmentItemId || (c.customerName === e.consignor && c.productName === e.productName && c.consignmentPrice === e.costPrice));
+            const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+            const consignmentBonus = isConsignment ? (e.costPrice * commissionRate * e.quantity) : 0;
             return sum + profitMargin + consignmentBonus;
         }, 0);
 
         const totalDeliveredProfit = activeData.reduce((sum, e) => {
             if (e.status === RevenueStatus.DELIVERED) {
                 const profitMargin = (e.retailPrice - e.costPrice) * e.quantity;
-                const consignmentBonus = (e.consignor && e.consignor.trim() !== '') ? (e.costPrice * 0.2 * e.quantity) : 0;
+                const isConsignment = e.consignor && e.consignor.trim() !== '';
+                const cItem = consignmentData.find(c => c.id === e.consignmentItemId || (c.customerName === e.consignor && c.productName === e.productName && c.consignmentPrice === e.costPrice));
+                const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+                const consignmentBonus = isConsignment ? (e.costPrice * commissionRate * e.quantity) : 0;
                 return sum + profitMargin + consignmentBonus;
             }
             return sum;
         }, 0);
 
         return { totalRevenue, totalFinalProfitAll, totalDeliveredProfit, count: activeData.length };
-    }, [filteredData]);
+    }, [filteredData, consignmentData]);
 
     const availableMonths = useMemo(() => {
         const months = new Set<string>();
@@ -699,7 +705,9 @@ const RevenueTable: React.FC = () => {
                             const total = entry.retailPrice * entry.quantity;
                             const profit = (entry.retailPrice - entry.costPrice) * entry.quantity;
                             const isConsignment = entry.consignor && entry.consignor.trim() !== '';
-                            const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
+                            const cItem = consignmentData.find(c => c.id === entry.consignmentItemId || (c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.costPrice));
+                            const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+                            const consignmentBonus = isConsignment ? (entry.costPrice * commissionRate * entry.quantity) : 0;
                             const rowFinalProfit = profit + consignmentBonus;
                             const isSelected = selectedIds.includes(entry.id);
                             const isReturned = entry.status === RevenueStatus.RETURNED;
@@ -786,7 +794,9 @@ const RevenueTable: React.FC = () => {
                     const total = entry.retailPrice * entry.quantity;
                     const profit = (entry.retailPrice - entry.costPrice) * entry.quantity;
                     const isConsignment = entry.consignor && entry.consignor.trim() !== '';
-                    const consignmentBonus = isConsignment ? (entry.costPrice * 0.2 * entry.quantity) : 0;
+                    const cItem = consignmentData.find(c => c.id === entry.consignmentItemId || (c.customerName === entry.consignor && c.productName === entry.productName && c.consignmentPrice === entry.costPrice));
+                    const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+                    const consignmentBonus = isConsignment ? (entry.costPrice * commissionRate * entry.quantity) : 0;
                     const rowFinalProfit = profit + consignmentBonus;
                     const isSelected = selectedIds.includes(entry.id);
 

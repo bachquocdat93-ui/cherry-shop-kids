@@ -168,8 +168,10 @@ const Dashboard: React.FC = () => {
     const calculateProfit = (item: RevenueEntry) => {
       const baseProfit = (item.retailPrice - item.costPrice) * item.quantity;
       const isConsignment = item.consignor && item.consignor.trim() !== '';
-      // Formula: Profit + CostPrice * 20%
-      return baseProfit + (isConsignment ? (item.costPrice * 0.20 * item.quantity) : 0);
+      // Formula: Profit + CostPrice * dynamic%
+      const cItem = consignmentData.find(c => c.id === item.consignmentItemId || (c.customerName === item.consignor && c.productName === item.productName && c.consignmentPrice === item.costPrice));
+      const commissionRate = cItem?.consignmentFee !== undefined ? (cItem.consignmentFee / 100) : 0.2;
+      return baseProfit + (isConsignment ? (item.costPrice * commissionRate * item.quantity) : 0);
     };
 
     const totalRevenue = validEntries.reduce((sum, item) => sum + item.retailPrice * item.quantity, 0);
